@@ -1,0 +1,50 @@
+{% if is_paginated %}
+  <div class="uk-align-center">
+    <ul class="uk-pagination">
+      {% if page_obj.has_previous %}
+
+        {% if page_obj.number > 1 %}
+          <li><a href="?page=1{% if query %}&{{ query }}{% endif %}" uk-icon="chevron-double-left"></a></li>
+        {% else %}
+          <li class="uk-disabled"><span uk-icon="chevron-double-left"></span></li>
+        {% endif %}
+
+        <li>
+          <a href="?page={{ page_obj.previous_page_number }}{% if query %}&{{ query }}{% endif %}"
+          ><span uk-pagination-previous></span></a>
+        </li>
+      {% else %}
+        <li class="uk-disabled"><span uk-pagination-previous></span></li>
+      {% endif %}
+
+      {% for page_num in paginator.page_range %}
+        {% if page_obj.number == page_num %}
+          <li class="uk-active"><span>{{ page_num }}</span></li>
+        {% elif page_num > page_obj.number|add:'-3' and page_num < page_obj.number|add:'3' %}
+          <li><a href="?page={{ page_num }}{% if query %}&{{ query }}{% endif %}">{{ page_num }}</a></li>
+        {% endif %}
+      {% endfor %}
+
+      {% if page_obj.has_next %}
+        <li>
+          <a href="?page={{ page_obj.next_page_number }}{% if query %}&{{ query }}{% endif %}">
+            <span uk-pagination-next></span>
+          </a>
+        </li>
+      {% else %}
+        <li class="uk-disabled"><span uk-pagination-next></span></li>
+      {% endif %}
+
+      {% if page_obj.number != paginator.num_pages %}
+        <li>
+          <a href="?page={{ paginator.num_pages }}{% if query %}&{{ query }}{% endif %}"
+             uk-icon="chevron-double-right"></a>
+        </li>
+      {% else %}
+        <li class="uk-disabled">
+          <span uk-icon="chevron-double-right"></span>
+        </li>
+      {% endif %}
+    </ul>
+  </div>
+{% endif %}

@@ -1,0 +1,21 @@
+{% extends 'django-pkiman/mgmt/base.html' %}
+{% block mgmt-subnav-reestr %}
+  <li class="uk-active"><a href="">Реестр</a></li>{% endblock %}
+{% block mgmt %}
+  {% if pki_type == 'crt' %}
+    {% include 'django-pkiman/includes/crt_list.html' %}
+  {% elif pki_type == 'crl' %}
+    {% include 'django-pkiman/includes/crl_list.html' %}
+  {% endif %}
+{% endblock %}
+{% block right_block %}
+  {% if url_path %}
+    <div class="uk-padding-small">
+      <ul class="uk-nav uk-nav-default" uk-margin>
+        <li{% if pki_type == 'crt' %} class="uk-active"{% endif %}><a href="{{ url_path }}?pki=crt">Сертификаты</a></li>
+        <li{% if pki_type == 'crl' %} class="uk-active"{% endif %}><a href="{{ url_path }}?pki=crl">Списки отзыва</a>
+        </li>
+      </ul>
+    </div>
+  {% endif %}
+{% endblock %}

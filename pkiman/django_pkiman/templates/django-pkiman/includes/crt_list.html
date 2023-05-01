@@ -1,0 +1,62 @@
+{% load static humanize pkimantags %}
+{% if object_list.exists %}
+  {% include 'django-pkiman/includes/pki_search_form.html' %}
+  <table class="uk-table uk-table-hover uk-text-small uk-table-divider">
+    <thead>
+    <tr class="uk-text-bold">
+      <th style="width: 1.5em;"></th>
+      <th>Наименование</th>
+      <th>Субъект</th>
+      <th>Издатель</th>
+      <th style="width: 1em;" title="Скачать файл сертификата">CRT</th>
+      <th style="width: 1em;" title="Скачать файл списка отзыва">CRL</th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for item in object_list %}
+      <tr>
+        <td class="uk-padding-remove-vertical"><a href="#" class="uk-icon-link" uk-icon="info"></a></td>
+        <td class="uk-padding-remove-vertical">{{ item|cert_pad_span }}
+        </td>
+        {# Subject #}
+        <td class="uk-padding-remove-vertical uk-text-small">
+          <div><code>ID:</code>{{ item.subject_identifier }}</div>
+          <div><code>SN:</code>{{ item.serial }}</div>
+          <small class="uk-margin-left">{{ item.valid_after }} - {{ item.valid_before }}</small>
+        </td>
+        {# Issuer #}
+        <td class="uk-padding-remove-vertical uk-text-small{% if not item.is_bound %} uk-text-muted{% endif %}">
+          {% if not item.is_bound and item.auth_info %}
+            <small><a class="uk-badge" href="{% url 'pkiman:get_parent_crt' item.pk %}?pki={{ pki_type }}">Загрузить
+              родительский сертификат</a></small>
+          {% endif %}
+          <div>{{ item.issuer_cn }}</div>
+          <div><code>ID:</code>{{ item.issuer_identifier|default_if_none:"-" }}</div>
+          <div><code>SN:</code>{{ item.issuer_serial|default_if_none:"-" }}</div>
+        </td>
+        {# Cert file #}
+        <td class="uk-padding-remove-vertical uk-text-small"><a href="{{ item.get_absolute_url }}"><i
+            uk-icon="icon: file"></i></a>
+        </td>
+        {# Crl file #}
+        <td class="uk-padding-remove-vertical uk-text-small">
+          {% if item.crl %}
+            <div><a href="{{ item.crl.get_absolute_url }}"><i uk-icon="icon: file-text"></i></a></div>
+          {% endif %}
+        </td>
+        <td>
+          {% if mgmt %}
+            <td class="uk-padding-remove-vertical" title="Удалить">
+              <a href="{% url 'pkiadmin:django_pkiman_crt_delete' item.pk %}?next={% url 'pkiman:reestr' %}?pki={{ pki_type }}"
+                 uk-icon="icon: trash" style="color: #ec2147"></a>
+            </td>
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  <div>Ни одного сертификата еще не загружено</div>
+{% endif %}
+

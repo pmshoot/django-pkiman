@@ -1,0 +1,20 @@
+{% extends 'django-pkiman/mgmt/base.html' %}
+{% block mgmt-subnav-journal %}
+  <li class="uk-active"><a href="{% url 'pkiman:journal' %}">Журнал</a></li>{% endblock %}
+{% block mgmt %}
+  <table class="uk-table uk-table-hover uk-text-small uk-table-divider">
+    <tbody>
+    {% for rec in object_list %}
+      <tr>
+        <td class="uk-padding-remove-vertical">{{ rec.created_at }}</td>
+        <td class="uk-padding-remove-vertical">{{ rec.get_level_display }}</td>
+        <td class="uk-padding-remove-vertical">{{ rec.message }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+
+  {% include 'django-pkiman/includes/paginator.html' %}
+{% endblock %}
+{% block right_block %}
+{% endblock %}

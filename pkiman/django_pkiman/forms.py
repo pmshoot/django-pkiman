@@ -1,0 +1,116 @@
+from django import forms
+from django.core.exceptions import ValidationError
+from django.core.validators import URLValidator
+from django.forms import PasswordInput
+
+from django_pkiman.models import Crl, CrlUpdateSchedule, Proxy
+from django_pkiman.utils import mime_content_type_extensions
+
+
+class ManagementURLUploadsForm(forms.Form):
+    file = forms.URLField(
+            widget=forms.URLInput(attrs={
+                'aria-label': 'Custom controls',
+                'class': 'uk-input uk-width-auto',
+                'placeholder': 'URL'
+            }),
+            required=False,
+            help_text='Загрузка данных из URL',
+    )
+
+    def clean_file(self):
+        file = self.cleaned_data['file']
+        if not file:
+            self.add_error('file', ValidationError('Не выбран путь для загрузки'))
+            return file
+        if not file_extension_permitted(file):
+            self.add_error('file', ValidationError('Не подходящее расширение файла'))
+        return file
+
+
+class ManagementLocalUploadsForm(forms.Form):
+    file = forms.FileField(
+            widget=forms.FileInput(attrs={
+                'aria-label': 'Custom controls',
+                # 'class': 'uk-input uk-width-auto',
+            }),
+            required=False,
+            help_text='Загрузка данных из локального файла',
+    )
+
+    def clean_file(self):
+        file = self.cleaned_data['file']
+        if not file:
+            self.add_error('file', ValidationError('Не выбран файл'))
+            return file
+        if not file_extension_permitted(file.name):
+            self.add_error('file', ValidationError('Не подходящее расширение файла'))
+        return file
+
+
+def file_extension_permitted(fname: str) -> bool:
+    """"""
+    fnch = fname.lower().split('.')
+    return len(fnch) > 1 and fnch[-1] in mime_content_type_extensions
+
+
+class CrlModelForm(forms.ModelForm):
+    validator = URLValidator()
+
+    class Meta:
+        model = Crl
+        fields = '__all__'
+        widgets = {
+            'urls': forms.Textarea(attrs={'row': 5, 'col': 10}),
+        }
+
+    def clean(self):
+        is_active = self.cleaned_data['active']
+        urls = self.cleaned_data.get('urls')
+        if is_active and not urls:
+            raise ValidationError('Укажите URL файлов crl списком через запятую')
+        return self.cleaned_data
+
+    def clean_urls(self):
+        urls = self.cleaned_data['urls']
+        if urls:
+            url_list = [url.strip() for url in urls.split(',')]
+            for url in url_list:
+                self.validator(url)
+            return ',\n'.join(url_list)
+        return ''
+
+
+class CrlUpdateScheduleModelForm(forms.ModelForm):
+    class Meta:
+        model = CrlUpdateSchedule
+        fields = '__all__'
+
+    def clean_dow(self):
+        # todo add check for crontab right string
+        data = self.cleaned_data['dow']
+        return data
+
+
+class ProxyModelForm(forms.ModelForm):
+    class Meta:
+        model = Proxy
+        fields = '__all__'
+        widgets = {
+            'password': PasswordInput(),
+        }
+
+    def clean(self):
+        username = self.cleaned_data.get('username')
+        password = self.cleaned_data.get('password')
+        if username and not password:
+            raise ValidationError('Укажите пароль')
+        return self.cleaned_data
+
+    def clean_is_default(self):
+        default = self.cleaned_data['is_default']
+        if 'is_default' in self.changed_data:
+            if default:
+                # очищаем флаг прокси у кого бы он не установлен
+                Proxy.objects.update(is_default=False)
+        return default

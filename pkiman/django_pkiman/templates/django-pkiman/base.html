@@ -1,0 +1,112 @@
+{% load static pkimantags %}<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="{% static 'css/uikit.min.css' %}">
+  <script src="{% static 'js/uikit.min.js' %}"></script>
+  <script src="{% static 'js/uikit-icons.min.js' %}"></script>
+  <title>PKI manager</title>
+</head>
+<body>
+{% block main %}
+  {# Navbar #}
+  <div uk-sticky="sel-target: .uk-section; cls-active: uk-navbar-sticky">
+    <div class="uk-section uk-padding-remove-vertical">
+      <div class="{% if mgmt %}uk-section-secondary{% else %}uk-section-primary{% endif %}">
+        <nav class="uk-navbar" uk-navbar>
+          <div class="uk-navbar-left uk-padding-small uk-padding-remove-vertical">
+            <a class="uk-navbar-item uk-logo" href="/">PKI менеджер</a>
+          </div>
+          <div class="uk-navbar-right uk-margin-right">
+            <ul class="uk-navbar-nav">
+              <li class="uk-navbar-item">
+                <span><a href="{% url 'pkiman:docs' %}"><span uk-icon="icon: question"></span></a></span>
+              </li>
+              {% if user.is_authenticated %}
+                <li class="uk-navbar-item">
+                  <span><a href="{% url 'pkiman:management' %}?pki={{ pki_type }}" class="" title="управление"
+                           uk-icon="icon: cog"></a></span>
+                </li>
+                <li class="uk-navbar-item">
+                  {#                  <a href="#" class="uk-button uk-button-link" uk-icon="icon: sign-user">{{ user }}</a>#}
+                  <a href="{% url 'pkiadmin:index' %}?next={% url 'pkiman:reestr' %}?pki={{ pki_type }}">{{ user|upper }}</a>
+                  {#                  <span>{{ user|upper }}</span>#}
+                  <span><a href="{% url 'logout' %}" class="uk-button uk-button-link"
+                           uk-icon="icon: sign-out"></a></span>
+                </li>
+                {#                <li class="uk-padding-remove">#}
+                {#                  <a href="{% url 'logout' %}" class="uk-button uk-button-link" uk-icon="icon: sign-out"></a>#}
+                {#                </li>#}
+              {% else %}
+                <li>
+                  <a class="uk-button uk-button-link" href="{% url 'login' %}" title="вход" uk-icon="icon: sign-in"></a>
+                </li>
+              {% endif %}
+            </ul>
+          </div>
+        </nav>
+      </div>
+    </div>
+  </div>
+  {% block admin_navbar %}{% endblock %}
+  {% block messages %}
+    {% if messages %}
+      {% for message in messages %}
+        <div class="uk-margin-remove-vertical {% if message.level %} uk-alert-{{ message.level|alert_tag }}{% endif %}"
+             uk-alert>
+          <a class="uk-alert-close" uk-close></a>
+          <p>{{ message }}</p>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endblock messages %}
+  {# Main #}
+  <div class="uk-section uk-section-default uk-padding-remove-vertical">
+    <div class="uk-container-expand">
+      <div class="uk-grid uk-padding-small">
+        {# Left block #}
+        <div class="uk-width-4-5">
+          {% block left_block %}
+            <article class="uk-article">
+              {% lorem 10 p %}
+            </article>
+          {% endblock %}
+        </div>
+        {# Right block #}
+        <div class="uk-width-1-5">
+          {% block right_block %}
+            <h2>Table of Contents</h2>
+            <div>
+              <ul class="uk-nav">
+                <li><a href="#">Info</a></li>
+                <li><a href="#">Items list</a></li>
+              </ul>
+            </div>
+          {% endblock %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# Footer #}
+  <div uk-sticky="position: bottom">
+    <div class="uk-section-secondary">
+      <div class="uk-container-expand uk-padding-small">
+        <div class="uk-grid uk-padding">
+          <div class="uk-width-1-2">
+            2023
+          </div>
+          <div class="uk-width-1-2">
+            <ul class="uk-nav uk-text-muted">
+              <li class="uk-align-right"><a href="#">API</a></li>
+              <li class="uk-align-right"></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock main %}
+</body>
+</html>
