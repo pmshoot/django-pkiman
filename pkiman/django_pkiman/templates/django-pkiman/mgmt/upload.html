@@ -26,10 +26,18 @@
   {#          url: '{% url 'pkiman:uploads' %}',#}
   {#multiple: true,#}
   {#          multiple: false,#}
+  {#allow: '*.crl;*.cer;*.crt;*.pem',#}
   {##}
-  {#          beforeSend: function (environment) {#}
+  {##}
+  {##}
+  {#          beforeSend: function (e) {#}
   {#              console.log('beforeSend', arguments);#}
-  {#            environment.headers['X-CSRF-TOKEN'] = '{{ csrf_token }}';#}
+  {#environment.xhr.setRequestHeader('X-CSRF-Token', '{{ csrf_token }}');#}
+  {#environment.headers.append('X-CSRF-Token','{{csrf_token}}');#}
+  {#e.xhr.setRequestHeader('X-CSRF-Token', '{{ csrf_token }}');#}
+  {#var xhr = e.headers;#}
+  {#              e.headers['X-CSRFToken'] = '{{ csrf_token }}';#}
+  {#              e.data['action'] = JSON.stringify({'action': 'file_upload'});#}
   {#          },#}
   {#          beforeAll: function () {#}
   {#              console.log('beforeAll', arguments);#}
@@ -66,14 +74,14 @@
   {#              bar.value = e.loaded;#}
   {#          },#}
   {##}
-  {#          completeAll: function () {#}
+  {#          completeAll: function (e) {#}
   {#              console.log('completeAll', arguments);#}
   {##}
   {#              setTimeout(function () {#}
   {#                  bar.setAttribute('hidden', 'hidden');#}
   {#              }, 1000);#}
-  {#              window.location.reload(true);#}
-  {#              alert('Upload Completed');#}
+  {#window.location.reload(true);#}
+  {#              alert(e.response);#}
   {#          }#}
   {##}
   {#      });#}
@@ -87,7 +95,7 @@
     {% csrf_token %}
     <fieldset class="uk-fieldset">
       <legend class="uk-legend">Загрузка файлов</legend>
-      {# Fileform #}
+      {#       Fileform#}
       <div class="uk-margin" uk-margin>
         <div uk-form-custom="target: true">
           {{ file_form.file }}

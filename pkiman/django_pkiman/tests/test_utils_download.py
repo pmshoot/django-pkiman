@@ -46,11 +46,14 @@ class TestUtils(unittest.TestCase):
             ('http://server.ltd/file.crt', ('file.crt', 'application/x-x509-ca-cert')),
             ('https://some.server.ltd/path/file_crl.crl', ('file_crl.crl', 'application/pkix-crl')),
             ('http://secert.server/path/path2/3/4/54/long.name.file.cer', ('long.name.file.cer',
-                                                                        'application/x-x509-ca-cert')),
+                                                                        'application/pkix-cert',  # linux
+                                                                        # 'application/x-x509-ca-cert',  # ms
+                                                                            )),
             ('http://s.ltd/file_binary.der', ('file_binary.der', 'application/x-x509-ca-cert')),
             ]
 
-        for url_in, (fname_in, mime_in) in test_list:
+        for n, data in enumerate(test_list):
+            url_in, (fname_in, mime_in) = data
             fname_out, mime_out = define_filename_content_type(url_in)
-            self.assertEqual(fname_in, fname_out)
-            self.assertEqual(mime_in, mime_out)
+            self.assertEqual(fname_in, fname_out, n)
+            self.assertEqual(mime_in, mime_out, n)
