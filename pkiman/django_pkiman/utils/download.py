@@ -47,6 +47,8 @@ def define_proxy(proxy) -> dict:
             'http': proxy,
             'https': proxy,
         }
+    if proxy is None:
+        proxy = {}
 
     return proxy
 

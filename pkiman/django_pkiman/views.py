@@ -8,6 +8,7 @@ from django.views.generic.detail import SingleObjectMixin
 
 from django_pkiman import forms, models
 from django_pkiman.errors import PKIError, PKIUrlError
+from django_pkiman.models import Proxy
 from django_pkiman.utils.download import get_from_url, get_from_url_list, update_crl
 from django_pkiman.utils.logger import logger
 from django_pkiman.utils.pki_parser import PKIObject
@@ -86,7 +87,8 @@ class ManagementUploadsView(LoginRequiredMixin, ManagementModeMixin, TemplateVie
             if form.is_valid():
                 file_url = form.cleaned_data['file']
                 try:
-                    proxy = models.Crl.objects.get_default_proxy()  # todo как вариант - меню выбора прокси сервера на странице загрузки
+                    proxy = models.Proxy.objects.get_default_proxy_url()  # todo как вариант - меню выбора прокси сервера
+                    # на странице загрузки
                     up_file, _ = get_from_url(file_url, proxy=proxy)
                 except PKIUrlError as e:
                     messages.error(request, e)
@@ -169,12 +171,13 @@ class ManagementGetParentCrt(LoginRequiredMixin, PermissionRequiredMixin, Single
 
     def get(self, request, *args, **kwargs):
         object: 'models.Crt' = self.get_object()
+        proxy = Proxy.objects.get_default_proxy_url()
         parent_crt = None
         # сертификат без родителя, не корневой и есть ссылка на родительский сертификат
         if not object.is_bound() and object.auth_info:
             try:
                 url_list = object.auth_info.values()
-                up_file = get_from_url_list(url_list)
+                up_file = get_from_url_list(url_list, proxy=proxy)
                 pki = PKIObject()
                 pki.read_x509(up_file)
                 parent_crt, _ = self.model.objects.get_from_pki(pki)
@@ -185,7 +188,7 @@ class ManagementGetParentCrt(LoginRequiredMixin, PermissionRequiredMixin, Single
                 # попытка загрузить список отзыва при успешной загрузке сертификата
                 if object.cdp_info and parent_crt:
                     url_list = [cdp[0] for cdp in object.cdp_info.values()]
-                    up_file = get_from_url_list(url_list)
+                    up_file = get_from_url_list(url_list, proxy=proxy)
                     pki.read_x509(up_file)
                     parent_crl, _ = models.Crl.objects.get_from_pki(pki)
                     parent_crl.urls = ','.join(url_list)
