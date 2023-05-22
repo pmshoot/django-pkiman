@@ -5,6 +5,7 @@ from django.contrib import admin
 from django.core.exceptions import MultipleObjectsReturned
 from django.db import models, transaction
 from django.db.models.signals import post_delete, pre_save
+from django.db.models.indexes import Index
 from django.dispatch import receiver
 from django.utils import timezone
 from treebeard.mp_tree import MP_Node, MP_NodeManager
@@ -17,6 +18,7 @@ from django_pkiman.utils.pki_parser import PKIObject
 DEFAULT_JOURNAL_LAST_RECORDS = 50
 
 
+# todo - путь cdp вынести в настройки для возможности смены
 def get_upload_file_path(instance, *args):
     return f'cdp/{instance.upload_file_path()}'
 
@@ -27,13 +29,15 @@ class CrtManager(MP_NodeManager):
 
     @transaction.atomic
     def get_from_pki(self, pki: 'PKIObject') -> ('Crt', bool):
-        """"""
+        """Чтение данных из объекта PKIObject сертификата, чтение или создание нового,
+        поиск родительских или дочерних и привязка
+        """
         created = False
         try:
             object = self.get(
-                    subject_dn=pki.subject,
-                    serial=pki.subject_serial_number
-            )
+                subject_dn=pki.subject,
+                serial=pki.subject_serial_number
+                )
 
         except self.model.DoesNotExist:
             created = True
@@ -52,7 +56,7 @@ class CrtManager(MP_NodeManager):
                 'cdp_info': pki.cdp_info,
                 'auth_info': pki.auth_info,
                 'file': pki.up_file
-            }
+                }
 
             # корневой сертификат сам себе родитель
             if pki.is_root:
@@ -60,8 +64,9 @@ class CrtManager(MP_NodeManager):
             else:
                 try:
                     # если есть в БД сертификат subject == issuer добавляемого сертификата - присвоить его как родителя
-                    issuer: Crt = self.get(subject_dn=pki.issuer,
-                                           subject_identifier=pki.issuer_identifier)
+                    issuer: Crt = self.get(
+                        subject_dn=pki.issuer,
+                        subject_identifier=pki.issuer_identifier)
                     object: Crt = issuer.add_child(**pki_data)
                     object.issuer = issuer
                     object.save()
@@ -71,10 +76,11 @@ class CrtManager(MP_NodeManager):
 
             # Найти "битые" сертификаты без родителя и установить издателя у сертификатов с таким же issuer_identifier
             if pki.CA:
-                orphans = self.filter(issuer_dn=pki.subject,
-                                      issuer_identifier=pki.subject_identifier,
-                                      issuer=None,
-                                      is_root_ca=False)
+                orphans = self.filter(
+                    issuer_dn=pki.subject,
+                    issuer_identifier=pki.subject_identifier,
+                    issuer=None,
+                    is_root_ca=False)
                 if orphans.exists():
                     for orphan in orphans.all():
                         orphan.move(object, pos='sorted-child')
@@ -87,7 +93,7 @@ class CrtManager(MP_NodeManager):
 # Models
 class Crt(MP_Node):
     """Сертификаты"""
-    subject_identifier = models.CharField(max_length=128, null=True)
+    subject_identifier = models.CharField(max_length=128, null=True, db_index=True)
     issuer_identifier = models.CharField(max_length=128, null=True)
     subject_dn = models.JSONField()
     serial = models.CharField('серийный номер', max_length=128)  # todo change to subject_serial_number
@@ -109,8 +115,20 @@ class Crt(MP_Node):
     node_order_by = ['subject_dn']
 
     class Meta:
+        verbose_name = 'Сертификат'
+        verbose_name_plural = 'Сертификаты'
         unique_together = ('issuer_dn', 'serial')  # RFC 5280 4.1.2.2
-        # ordering = ['subject_dn']
+        indexes = (
+            Index(name='crt_get_issuer_idx', fields=('subject_dn', 'subject_identifier')),
+            Index(name='crt_filter_orphans_idx', fields=('issuer_dn',
+                                                         'issuer_identifier',
+                                                         'issuer',
+                                                         'is_root_ca',
+                                                         )),
+            Index(name='crl_get_issuer_crt', fields=('subject_dn',
+                                                     'subject_identifier',
+                                                     'serial'))
+            )
 
     def __str__(self):
         return self.name()
@@ -139,6 +157,7 @@ class Crt(MP_Node):
         return self.valid_after < timezone.make_aware(datetime.datetime.now()) < self.valid_before
 
     def is_valid(self):
+        """Есть привязка к родительскому сертификату, не просрочен и не отозван"""
         if self.is_root():
             if not self.is_valid_date() or self.is_revoked():
                 return False
@@ -151,17 +170,15 @@ class Crt(MP_Node):
         return True
 
     def is_bound(self):
+        """Есть привязка к родительскому сертификату. Корневой привязан сам к себе"""
         return self.is_root_ca or self.issuer is not None
 
     def is_revoked(self):
         return self.revoked_date is not None
 
     def is_final(self):
+        """Конечный сертификат - не корневой и не промежуточный"""
         return not (self.is_root_ca or self.is_ca)
-
-    # def get_revoked_queryset(self):
-    #     if self.crl:
-    #         return self.crl.revoked_list.all()
 
     def upload_file_name(self):
         """"""
@@ -183,6 +200,7 @@ class Crt(MP_Node):
 
 @receiver(post_delete, sender=Crt, weak=False)
 def delete_crt_object(sender, instance: Crt, **kwargs):
+    """Удаляет файл на диске после удаления объекта"""
     fpath = instance.file.file.name
     if os.path.exists(fpath):
         try:
@@ -217,16 +235,16 @@ class CrlManager(models.Manager):
                     raise PKICrtMultipleFoundError(value=pki.issuer_identifier)
 
         object, created = self.get_or_create(
-                issuer=issuer,
-                defaults={
-                    'crl_number': pki.crl_number,
-                    'fingerprint': pki.fingerprint,
-                    'last_update': pki.last_update,
-                    'next_update': pki.next_update,
-                    'revoked_count': len(pki.revoked_list),
-                    'file': pki.up_file,
+            issuer=issuer,
+            defaults={
+                'crl_number': pki.crl_number,
+                'fingerprint': pki.fingerprint,
+                'last_update': pki.last_update,
+                'next_update': pki.next_update,
+                'revoked_count': len(pki.revoked_list),
+                'file': pki.up_file,
                 }
-        )
+            )
 
         if not created:
             if pki.fingerprint == object.fingerprint:
@@ -245,19 +263,11 @@ class CrlManager(models.Manager):
 
         return object, created
 
-    def get_default_proxy(self):
-        try:
-            crl = self.get(proxy__is_default=True)
-        except Exception:
-            pass
-        else:
-            return crl.get_proxy()
-
 
 class Crl(models.Model):
     """Списки отзыва"""
     issuer = models.OneToOneField('Crt', on_delete=models.CASCADE, related_name='crl')
-    fingerprint = models.CharField(max_length=64)
+    fingerprint = models.CharField(max_length=64, unique=True)
     file = models.FileField(upload_to=get_upload_file_path)
     crl_number = models.TextField(null=True)
     last_update = models.DateTimeField()
@@ -266,16 +276,18 @@ class Crl(models.Model):
     # update info section
     urls = models.CharField(max_length=128, blank=True)
     active = models.BooleanField(default=False)
-    schedule = models.ForeignKey('CrlUpdateSchedule',
-                                 on_delete=models.SET_NULL,
-                                 null=True,
-                                 blank=True,
-                                 related_name='crl_list')
-    proxy = models.ForeignKey('Proxy',
-                              on_delete=models.SET_NULL,
-                              null=True,
-                              blank=True,
-                              )
+    schedule = models.ForeignKey(
+        'CrlUpdateSchedule',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='crl_list')
+    proxy = models.ForeignKey(
+        'Proxy',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        )
     no_proxy = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True, editable=False)
     edited_at = models.DateTimeField(auto_now=True, editable=False)
@@ -286,6 +298,11 @@ class Crl(models.Model):
     f_sync = models.DateTimeField(null=True)
 
     objects = CrlManager()
+
+    class Meta:
+        verbose_name = 'Список отзыва'
+        verbose_name_plural = 'Списки отзыва'
+        ordering = ('issuer',)
 
     def __str__(self):
         return self.issuer.upload_file_name()
@@ -313,6 +330,7 @@ class Crl(models.Model):
 
 @receiver(post_delete, sender=Crl, weak=False)
 def delete_crl_object(sender, instance: Crl, **kwargs):
+    """Удаление файла на диске после удаления объекта"""
     fpath = instance.file.file.name
     if os.path.exists(fpath):
         try:
@@ -323,11 +341,15 @@ def delete_crl_object(sender, instance: Crl, **kwargs):
 
 @receiver(pre_save, sender=Crl, weak=False)
 def set_proxy_crl_object(sender, instance: Crl, **kwargs):
+    """При установке опции 'no_proxy' удаляет существующую ссылку на инстанс прокси-сервера.
+    При снятии установленной опции 'no_proxy' устанавливает прокси-сервер по-умолчанию, если у
+    одного из прокси установлена опция 'is_default'
+    """
     if instance.no_proxy and instance.proxy:
         instance.proxy = None
     elif not instance.no_proxy and not instance.proxy:
         try:
-            proxy = Proxy.objects.get(is_default=True)
+            proxy = Proxy.objects.get_default_proxy()
             instance.proxy = proxy
         except (Proxy.DoesNotExist, MultipleObjectsReturned):
             pass
@@ -338,7 +360,7 @@ def set_proxy_crl_object(sender, instance: Crl, **kwargs):
 class CrlUpdateSchedulerManager(models.Manager):
     def get_tasks(self):
         nowday = timezone.datetime.now()
-        weekday = nowday.isoweekday()
+        # weekday = nowday.isoweekday()
         return self.filter(crl_list__isnull=False,
                            is_active=True,
                            # dow__contains=weekday,
@@ -360,7 +382,12 @@ class CrlUpdateSchedule(models.Model):
     objects = CrlUpdateSchedulerManager()
 
     class Meta:
+        verbose_name = 'Расписание'
+        verbose_name_plural = 'Расписание'
         ordering = ('name',)
+        indexes = (
+            Index(name='crl_schedule_get_tasks_idx', fields=('is_active', 'std', 'etd')),
+        )
 
     def __str__(self):
         return self.name
@@ -370,28 +397,49 @@ class CrlUpdateSchedule(models.Model):
         return self.is_active
 
 
+class ProxyManager(models.Manager):
+
+    def get_default_proxy_url(self):
+        proxy = self.get_default_proxy()
+        if proxy:
+            return proxy.get_url()
+
+    def get_default_proxy(self):
+        try:
+            proxy = self.get(is_default=True)
+            return proxy
+        except Exception:
+            pass
+
+
 class Proxy(models.Model):
     name = models.CharField(max_length=128)
     url = models.URLField(null=True)
     username = models.CharField(max_length=128, blank=True, null=True)
     password = models.CharField(max_length=64, blank=True, null=True)
-    is_default = models.BooleanField(default=False)
+    is_default = models.BooleanField(default=False, db_index=True)
+
+    objects = ProxyManager()
+
+    class Meta:
+        verbose_name = 'Прокси-сервер'
+        verbose_name_plural = 'Прокси'
+        ordering = ('name',)
 
     def __str__(self):
         return f'{self.username}:***@{self.url}' if self.username else self.url
 
-    # def clean_url(self, url: str):
-    #     schema, path = url.split('://')
-    #     return schema, path
-
     def get_url(self):
-        return f'{self.username}:{self.password}@{self.url}' if self.username and self.password else self.url
+        if self.username and self.password:
+            scheme, path = self.url.split('://')
+            return f'{scheme}://{self.username}:{self.password}@{path}'
+        return self.url
 
     def get_url_map(self):
-        # _, url = self.clean_url(self.get_url())
         return {
-            'http': self.get_url()
-        }
+            'http': self.get_url(),
+            'https': self.get_url()
+            }
 
 
 class JournalManager(models.Manager):
@@ -419,11 +467,14 @@ class JournalTypeChoices(models.TextChoices):
 
 
 class Journal(models.Model):
-    created_at = models.DateTimeField(auto_now=True, editable=False)
-    level = models.CharField(max_length=1, choices=JournalTypeChoices.choices, default=JournalTypeChoices.INFO)
+    created_at = models.DateTimeField(auto_now=True, editable=False, db_index=True)
+    level = models.CharField(max_length=1, choices=JournalTypeChoices.choices,
+                             default=JournalTypeChoices.INFO, db_index=True)
     message = models.TextField()
 
     objects = JournalManager()
 
     class Meta:
+        verbose_name = 'Запись журнала'
+        verbose_name_plural = 'Журнал'
         ordering = ('-created_at',)
