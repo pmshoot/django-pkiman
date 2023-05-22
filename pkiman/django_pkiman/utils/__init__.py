@@ -1,4 +1,5 @@
 import re
+import urllib
 
 mime_content_type_map = {
     'application/pkix-cert': 'crt',
