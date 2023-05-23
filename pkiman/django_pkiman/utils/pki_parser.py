@@ -2,7 +2,7 @@ from cryptography import x509
 from cryptography.hazmat._oid import _OID_NAMES, NameOID as _NameOID
 from cryptography.hazmat.bindings._rust import (
     ObjectIdentifier as ObjectIdentifier,
-)
+    )
 from cryptography.hazmat.primitives import hashes
 from django.utils.timezone import make_aware
 
@@ -77,7 +77,7 @@ class PKIObject:
         self._object = None
         self._parsed = {}
 
-    def read_x509(self, up_file: 'InMemoryUploadedFile | TemporaryUploadedFile'):
+    def read_x509(self, up_file):
         """"""
         if self._object:
             self.clean()

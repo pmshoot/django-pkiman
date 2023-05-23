@@ -1,15 +1,13 @@
 import re
-import urllib
 
 mime_content_type_map = {
     'application/pkix-cert': 'crt',
     'application/x-x509-ca-cert': 'crt',
     'application/pkix-crl': 'crl',
     # 'application/x-pkcs7-certificates': 'p7b'
-}
-
-mime_content_type_extensions = extensions = (
-'crt', 'cer', 'crl', 'der')  # todo add ('pem', 'p7b') after adding proper functional
+    }
+# todo add ('pem', 'p7b') after adding proper functional
+mime_content_type_extensions = extensions = ('crt', 'cer', 'crl', 'der')
 
 
 def clean_file_name(string: str) -> str:

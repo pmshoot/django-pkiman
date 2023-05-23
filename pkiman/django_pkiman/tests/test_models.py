@@ -1,8 +1,6 @@
 import random
 import string
-import time
 
-from django.template.defaulttags import lorem
 from django.test import TestCase
 
 from django_pkiman import models
@@ -58,13 +56,12 @@ class TestProxyModel(TestCase):
     @classmethod
     def setUpTestData(cls):
         models.Proxy.objects.create(name='proxy_1', url='http://proxy.server.ltd', is_default=True)
-        models.Proxy.objects.create(name='proxy_2', url='http://proxy.server.ltd', username='username',
-                                    password='password', is_default=False)
+        models.Proxy.objects.create(name='proxy_2', url='http://proxy.server.ltd', proxy_user='username',
+                                    proxy_pass='password', is_default=False)
 
     def setUp(self) -> None:
         self.proxy_1 = models.Proxy.objects.get(pk=1)
         self.proxy_2 = models.Proxy.objects.get(pk=2)
-
 
     def test_get_url(self):
         self.assertEqual(self.proxy_1.get_url(), 'http://proxy.server.ltd')
@@ -79,5 +76,3 @@ class TestProxyModel(TestCase):
     def test_get_default_proxy(self):
         url = models.Proxy.objects.get_default_proxy_url()
         self.assertEqual(url, 'http://proxy.server.ltd')
-
-

@@ -1,7 +1,7 @@
 from django import forms
 from django.core.exceptions import ValidationError
 from django.core.validators import URLValidator
-from django.forms import PasswordInput
+from django.forms import PasswordInput, TextInput
 
 from django_pkiman.models import Crl, CrlUpdateSchedule, Proxy
 from django_pkiman.utils import mime_content_type_extensions
@@ -61,7 +61,7 @@ class CrlModelForm(forms.ModelForm):
         model = Crl
         fields = '__all__'
         widgets = {
-            'urls': forms.Textarea(attrs={'row': 5, 'col': 10}),
+            'urls': forms.Textarea(attrs={'rows': 5, 'cols': 100}),
         }
 
     def clean(self):
@@ -97,13 +97,14 @@ class ProxyModelForm(forms.ModelForm):
         model = Proxy
         fields = '__all__'
         widgets = {
-            'password': PasswordInput(),
+            'proxy_user': TextInput(attrs={'autocomplete': 'off'}),
+            'proxy_pass': PasswordInput(attrs={'autocomplete': 'off'}),
         }
 
     def clean(self):
-        username = self.cleaned_data.get('username')
-        password = self.cleaned_data.get('password')
-        if username and not password:
+        proxy_user = self.cleaned_data.get('proxy_user')
+        proxy_pass = self.cleaned_data.get('proxy_pass')
+        if proxy_user and not proxy_pass:
             raise ValidationError('Укажите пароль')
         return self.cleaned_data
 

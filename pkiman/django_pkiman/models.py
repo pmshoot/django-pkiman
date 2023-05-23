@@ -4,12 +4,11 @@ import os
 from django.contrib import admin
 from django.core.exceptions import MultipleObjectsReturned
 from django.db import models, transaction
-from django.db.models.signals import post_delete, pre_save
 from django.db.models.indexes import Index
+from django.db.models.signals import post_delete, pre_save
 from django.dispatch import receiver
 from django.utils import timezone
 from treebeard.mp_tree import MP_Node, MP_NodeManager
-from treebeard.ns_tree import NS_Node
 
 from django_pkiman.errors import PKICrtDoesNotFoundError, PKICrtMultipleFoundError, PKIDuplicateError, PKIOldError
 from django_pkiman.utils import clean_file_name
@@ -93,23 +92,26 @@ class CrtManager(MP_NodeManager):
 # Models
 class Crt(MP_Node):
     """Сертификаты"""
-    subject_identifier = models.CharField(max_length=128, null=True, db_index=True)
-    issuer_identifier = models.CharField(max_length=128, null=True)
+    subject_identifier = models.CharField('идентификатор субъекта',
+                                          max_length=128, null=True, db_index=True)
+    issuer_identifier = models.CharField('идентификатор издателя',
+                                         max_length=128, null=True)
     subject_dn = models.JSONField()
     serial = models.CharField('серийный номер', max_length=128)  # todo change to subject_serial_number
     issuer_dn = models.JSONField()
     issuer_serial = models.CharField(max_length=128, null=True)  # todo change to issuer_serial_number
-    issuer = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, related_name='children')
-    fingerprint = models.CharField(max_length=64, unique=True)
-    file = models.FileField(upload_to=get_upload_file_path)
-    valid_after = models.DateTimeField()
-    valid_before = models.DateTimeField()
-    is_ca = models.BooleanField(default=False)
-    is_root_ca = models.BooleanField(default=False)
-    revoked_date = models.DateTimeField(null=True)
-    cdp_info = models.JSONField(null=True)
-    auth_info = models.JSONField(null=True)
-    created_at = models.DateTimeField(auto_now_add=True, editable=False)
+    issuer = models.ForeignKey('self', verbose_name='привязка к издателю',
+                               on_delete=models.SET_NULL, null=True, related_name='children')
+    fingerprint = models.CharField('отпечаток', max_length=64, unique=True)
+    file = models.FileField('ссылка на файл', upload_to=get_upload_file_path)
+    valid_after = models.DateTimeField('Действителен с')
+    valid_before = models.DateTimeField('Действителен до')
+    is_ca = models.BooleanField('корневой', default=False)
+    is_root_ca = models.BooleanField('удостоверяющий', default=False)
+    revoked_date = models.DateTimeField('отозван', null=True)
+    cdp_info = models.JSONField('точки распространения СОС УЦ', null=True)
+    auth_info = models.JSONField('точки распространения УЦ', null=True)
+    created_at = models.DateTimeField('загружен', auto_now_add=True, editable=False)
 
     objects = CrtManager()
     node_order_by = ['subject_dn']
@@ -140,18 +142,30 @@ class Crt(MP_Node):
         return self.file.url
 
     @property
+    @admin.display(description='Наименование')
     def cn(self):
         return self.subject_dn.get('commonName')
 
     @property
+    @admin.display(description='Наименование')
     def issuer_cn(self):
         return self.issuer_dn.get('commonName')
 
     def subject_as_text(self):
         return ', '.join([f'{k}={v.strip()}' for k, v in self.subject_dn.items()])
 
+    def subject_as_text_nl(self):
+        return ',\n'.join([f'{k}={v.strip()}' for k, v in self.subject_dn.items()])
+
+    def issuer_as_text_nl(self):
+        return ',\n'.join([f'{k}={v.strip()}' for k, v in self.issuer_dn.items()])
+
     def serial_number_hex(self):
         return f'{int(self.serial):x}'
+
+    def issuer_serial_number_hex(self):
+        if self.issuer_serial:
+            return f'{int(self.issuer_serial):x}'
 
     def is_valid_date(self):
         return self.valid_after < timezone.make_aware(datetime.datetime.now()) < self.valid_before
@@ -266,36 +280,43 @@ class CrlManager(models.Manager):
 
 class Crl(models.Model):
     """Списки отзыва"""
-    issuer = models.OneToOneField('Crt', on_delete=models.CASCADE, related_name='crl')
-    fingerprint = models.CharField(max_length=64, unique=True)
-    file = models.FileField(upload_to=get_upload_file_path)
-    crl_number = models.TextField(null=True)
-    last_update = models.DateTimeField()
-    next_update = models.DateTimeField()
-    revoked_count = models.IntegerField(default=0)
+    issuer = models.OneToOneField('Crt', verbose_name='Сертификат', on_delete=models.CASCADE, related_name='crl')
+    fingerprint = models.CharField('отпечаток', max_length=64, unique=True)
+    file = models.FileField('ссылка на файл', upload_to=get_upload_file_path)
+    crl_number = models.TextField('номер', null=True)
+    last_update = models.DateTimeField('обновлен')
+    next_update = models.DateTimeField('следующее обновление')
+    revoked_count = models.IntegerField('количество отозванных сертификатов', default=0)
     # update info section
-    urls = models.CharField(max_length=128, blank=True)
-    active = models.BooleanField(default=False)
+    urls = models.TextField('URL',
+                            help_text='список URL для загрузки обновленных файлов через запятую',
+                            blank=True)
+    active = models.BooleanField('обновляемый',
+                                 help_text='при установленной опции обновляется по выбранному расписанию и может '
+                                           'обновлять со страницы сайта',
+                                 default=False)
     schedule = models.ForeignKey(
         'CrlUpdateSchedule',
+        verbose_name='расписание',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name='crl_list')
     proxy = models.ForeignKey(
         'Proxy',
+        verbose_name='прокси сервер',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
         )
-    no_proxy = models.BooleanField(default=False)
+    no_proxy = models.BooleanField('не использовать прокси', default=False)
     created_at = models.DateTimeField(auto_now_add=True, editable=False)
     edited_at = models.DateTimeField(auto_now=True, editable=False)
     # last remote file data
-    f_date = models.DateTimeField(null=True)
-    f_size = models.PositiveSmallIntegerField(null=True)
-    f_etag = models.CharField(max_length=128, null=True)
-    f_sync = models.DateTimeField(null=True)
+    f_date = models.DateTimeField('дата файла', null=True)
+    f_size = models.PositiveSmallIntegerField('размер файла', null=True)
+    f_etag = models.CharField('хэш файла', max_length=128, null=True)
+    f_sync = models.DateTimeField('дата последней синхронизации', null=True)
 
     objects = CrlManager()
 
@@ -371,12 +392,18 @@ class CrlUpdateSchedulerManager(models.Manager):
 
 class CrlUpdateSchedule(models.Model):
     """"""
-    name = models.CharField(max_length=64)
-    dow = models.JSONField('дни недели')
+    name = models.CharField('наименование',
+                            max_length=64)
+    dow = models.JSONField('дни недели',
+                           help_text='используйте JSON формат. Например: [1,2,3,4,5]',
+                           )  # todo доработать для удобства ввода данных
     # dom = models.JSONField('числа месяца') # todo add in the future
     std = models.TimeField('начало временного диапазона')
     etd = models.TimeField('конец временного диапазона')
-    is_active = models.BooleanField(default=True)
+    is_active = models.BooleanField('активный',
+                                    help_text='при активации данное расписание будет использовано планировщиков при '
+                                              'запуске обновлений',
+                                    default=True)
     # todo коэффициент определяющий кол-во раз в день
 
     objects = CrlUpdateSchedulerManager()
@@ -387,7 +414,7 @@ class CrlUpdateSchedule(models.Model):
         ordering = ('name',)
         indexes = (
             Index(name='crl_schedule_get_tasks_idx', fields=('is_active', 'std', 'etd')),
-        )
+            )
 
     def __str__(self):
         return self.name
@@ -413,11 +440,24 @@ class ProxyManager(models.Manager):
 
 
 class Proxy(models.Model):
-    name = models.CharField(max_length=128)
-    url = models.URLField(null=True)
-    username = models.CharField(max_length=128, blank=True, null=True)
-    password = models.CharField(max_length=64, blank=True, null=True)
-    is_default = models.BooleanField(default=False, db_index=True)
+    name = models.CharField('наименование',
+                            help_text='краткое наименование сервера для отображения в списке',
+                            max_length=128)
+    url = models.URLField('url адрес',
+                          help_text='например: http://my.proxy.server:3128',
+                          null=True)
+    proxy_user = models.CharField('пользователь',
+                                  max_length=128,
+                                  blank=True,
+                                  null=True)
+    proxy_pass = models.CharField('пароль',
+                                  max_length=64,
+                                  blank=True,
+                                  null=True)
+    is_default = models.BooleanField('по-умолчанию',
+                                     help_text='при выборе данный прокси сервер будет использоваться по-умолчанию при загрузке файлов',
+                                     default=False,
+                                     db_index=True)
 
     objects = ProxyManager()
 
@@ -427,12 +467,13 @@ class Proxy(models.Model):
         ordering = ('name',)
 
     def __str__(self):
-        return f'{self.username}:***@{self.url}' if self.username else self.url
+        # return f'{self.proxy_user}:***@{self.url}' if self.proxy_user else self.url
+        return self.name
 
     def get_url(self):
-        if self.username and self.password:
+        if self.proxy_user and self.proxy_pass:
             scheme, path = self.url.split('://')
-            return f'{scheme}://{self.username}:{self.password}@{path}'
+            return f'{scheme}://{self.proxy_user}:{self.proxy_pass}@{path}'
         return self.url
 
     def get_url_map(self):

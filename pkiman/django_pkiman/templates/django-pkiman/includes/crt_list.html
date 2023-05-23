@@ -4,18 +4,20 @@
   <table class="uk-table uk-table-hover uk-text-small uk-table-divider">
     <thead>
     <tr class="uk-text-bold">
-      <th style="width: 1.5em;"></th>
+      {#      <th style="width: 1.5em;"></th>#}
+      <th></th>
       <th>Наименование</th>
       <th>Субъект</th>
       <th>Издатель</th>
       <th style="width: 1em;" title="Скачать файл сертификата">CRT</th>
       <th style="width: 1em;" title="Скачать файл списка отзыва">CRL</th>
+      <th></th>
     </tr>
     </thead>
     <tbody>
     {% for item in object_list %}
       <tr>
-        <td class="uk-padding-remove-vertical"><a href="#" class="uk-icon-link" uk-icon="info"></a></td>
+        <td class="uk-padding-remove-vertical"><a href="#" class="uk-icon-link" uk-icon="icon: info"></a></td>
         <td class="uk-padding-remove-vertical">{{ item|cert_pad_span }}
         </td>
         {# Subject #}
@@ -35,21 +37,19 @@
           <div><code>SN:</code>{{ item.issuer_serial|default_if_none:"-" }}</div>
         </td>
         {# Cert file #}
-        <td class="uk-padding-remove-vertical uk-text-small"><a href="{{ item.get_absolute_url }}"><i
-            uk-icon="icon: file"></i></a>
+        <td class="uk-padding-remove-vertical uk-text-small"><a href="{{ item.get_absolute_url }}"><span
+            uk-icon="icon: file"></span></a>
         </td>
         {# Crl file #}
         <td class="uk-padding-remove-vertical uk-text-small">
           {% if item.crl %}
-            <div><a href="{{ item.crl.get_absolute_url }}"><i uk-icon="icon: file-text"></i></a></div>
+            <div><a href="{{ item.crl.get_absolute_url }}"><span uk-icon="icon: file-text"></span></a></div>
           {% endif %}
         </td>
-        <td>
+        <td class="uk-padding-remove-vertical uk-text-small">
           {% if mgmt %}
-            <td class="uk-padding-remove-vertical" title="Удалить">
-              <a href="{% url 'pkiadmin:django_pkiman_crt_delete' item.pk %}?next={% url 'pkiman:reestr' %}?pki={{ pki_type }}"
-                 uk-icon="icon: trash" style="color: #ec2147"></a>
-            </td>
+            <a href="{% url 'pkiadmin:django_pkiman_crt_delete' item.pk %}?next={% url 'pkiman:reestr' %}?pki={{ pki_type }}"
+               title="Удалить"><span style="color: #ec2147" uk-icon="icon: trash"></span></a>
           {% endif %}
         </td>
       </tr>

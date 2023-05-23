@@ -16,13 +16,15 @@
       <th class="uk-padding-remove-vertical">№</th>
       <th class="uk-padding-remove-vertical">Период действия</th>
       <th class="uk-padding-remove-vertical" style="width: 1em;" title="Срок действия закончится"><span
-          uk-icon="ban"></span></th>
+          uk-icon="icon: ban"></span></th>
       <th class="uk-padding-remove-vertical" title="Загрузить файл списка отзыва"><span
-          uk-icon="download"></span></th>
+          uk-icon="icon: download"></span></th>
       {# Планировщик #}
-      <th class="uk-padding-remove-vertical" title="Планировщик"><span uk-icon="future"></span></th>
-      <th></th>
-      <th></th>
+      <th class="uk-padding-remove-vertical" title="Планировщик"><span uk-icon="icon: future"></span></th>
+      {% if mgmt %}
+        <th></th>
+        <th></th>
+      {% endif %}
     </tr>
     </thead>
     <tbody>
@@ -30,7 +32,7 @@
       {% with item.is_valid as item_is_valid %}
         <tr{% if not item_is_valid %} class="uk-text-warning"{% endif %}>
           {# Данные сертификата #}
-          <td class="uk-padding-remove-vertical"><a href="#" class="uk-icon-link" uk-icon="info"></a></td>
+          <td class="uk-padding-remove-vertical"><a href="#" class="uk-icon-link" uk-icon="icon: info"></a></td>
           <td class="uk-padding-remove-vertical uk-table-expand" title="{{ item.issuer.subject_as_text }}">
             {{ item.issuer }}
           </td>

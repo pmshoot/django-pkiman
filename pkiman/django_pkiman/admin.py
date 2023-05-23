@@ -26,7 +26,22 @@ class PKIAdminSite(admin.AdminSite):
 admin_site = PKIAdminSite(name='pkiadmin')
 
 
-class CrtAdmin(admin.ModelAdmin):
+class PKIModelAdminMixin:
+
+    def response_delete(self, request, obj_display, obj_id):
+        next = request.GET.get('next')
+        if next:
+            return HttpResponseRedirect(next)
+        return super().response_delete(request, obj_display, obj_id)
+
+    def response_change(self, request, obj):
+        next = request.GET.get('next')
+        if next:
+            return HttpResponseRedirect(next)
+        return super().response_change(request, obj)
+
+
+class CrtAdmin(PKIModelAdminMixin, admin.ModelAdmin):
     """"""
     ordering = ('issuer',)
     list_display = ('cn',
@@ -35,6 +50,56 @@ class CrtAdmin(admin.ModelAdmin):
                     'valid_after',
                     'valid_before',
                     )
+    fieldsets = [
+        ('Субъект', {
+            # 'description': '',
+            'classes': ('wide',),
+            'fields': ('subject_identifier',
+                       # 'subject_dn',
+                       'subject_dn_as_text_nl',
+                       'subject_serial_number',
+                       'fingerprint',
+                       'valid_after',
+                       'valid_before',
+                       'cdp_info',
+                       'auth_info',
+                       )
+            }),
+        ('Издатель', {
+            # 'description': '',
+            'classes': ('wide',),
+            'fields': ('issuer_identifier',
+                       'issuer_dn_as_text_nl',
+                       'issuer_serial_number',
+                       'issuer',
+                       )
+            }),
+        ('Объект', {
+            'classes': ('wide',),
+            'fields': ('file',
+                       'is_ca',
+                       'is_root_ca',
+                       'revoked_date',
+                       'created_at',
+                       )
+            }),
+        ]
+
+    @admin.display(description='DN')
+    def subject_dn_as_text_nl(self, obj):
+        return obj.subject_as_text_nl()
+
+    @admin.display(description='Серийный номер')
+    def subject_serial_number(self, obj):
+        return obj.serial_number_hex()
+
+    @admin.display(description='DN')
+    def issuer_dn_as_text_nl(self, obj):
+        return obj.issuer_as_text_nl()
+
+    @admin.display(description='Серийный номер')
+    def issuer_serial_number(self, obj):
+        return obj.issuer_serial_number_hex()
 
     def has_add_permission(self, request):
         return False
@@ -42,15 +107,8 @@ class CrtAdmin(admin.ModelAdmin):
     def has_change_permission(self, request, obj=None):
         return False
 
-    def response_delete(self, request, obj_display, obj_id):
-        next = request.GET.get('next')
-        if next:
-            return HttpResponseRedirect(next)
-        response = super().response_delete(request, obj_display, obj_id)
-        return response
 
-
-class CrlAdmin(admin.ModelAdmin):
+class CrlAdmin(PKIModelAdminMixin, admin.ModelAdmin):
     """"""
     form = CrlModelForm
     ordering = ('issuer',)
@@ -81,16 +139,17 @@ class CrlAdmin(admin.ModelAdmin):
                        'last_update',
                        'next_update',
                        )
-        }),
+            }),
         ('Обновление', {
             # 'description': '',
             'classes': ('wide',),
             'fields': ('urls',
                        'schedule',
                        'proxy',
-                       ('active', 'no_proxy'),
+                       'active',
+                       'no_proxy',
                        )
-        }),
+            }),
         ('Данные синхронизации', {
             # 'description': ''
             'classes': ('wide',),
@@ -99,54 +158,27 @@ class CrlAdmin(admin.ModelAdmin):
                        'f_size',
                        'f_sync',
                        )
-        }),
-    ]
+            }),
+        ]
 
-    @admin.display
+    @admin.display(description='Наименование')
     def issuer_name(self, obj):
         return obj.issuer.name()
 
     @admin.display
+    @admin.display(description='Идентификатор')
     def issuer_subject_identifier(self, obj):
         return obj.issuer.subject_identifier
 
     def has_add_permission(self, request):
         return False
 
-    def response_change(self, request, obj):
-        next = request.GET.get('next')
-        if next:
-            return HttpResponseRedirect(next)
-        response = super().response_change(request, obj)
-        return response
 
-    def response_delete(self, request, obj_display, obj_id):
-        next = request.GET.get('next')
-        if next:
-            return HttpResponseRedirect(next)
-        response = super().response_delete(request, obj_display, obj_id)
-        return response
-
-
-class CrlUpdateScheduleAdmin(admin.ModelAdmin):
+class CrlUpdateScheduleAdmin(PKIModelAdminMixin, admin.ModelAdmin):
     """"""
     form = CrlUpdateScheduleModelForm
     ordering = ('name',)
     list_display = ('name', 'dow', 'std', 'etd', 'active')
-
-    def response_change(self, request, obj):
-        next = request.GET.get('next')
-        if next:
-            return HttpResponseRedirect(next)
-        response = super().response_change(request, obj)
-        return response
-
-    def response_delete(self, request, obj_display, obj_id):
-        next = request.GET.get('next')
-        if next:
-            return HttpResponseRedirect(next)
-        response = super().response_delete(request, obj_display, obj_id)
-        return response
 
 
 class ProxyAdmin(admin.ModelAdmin):
