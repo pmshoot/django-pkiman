@@ -118,7 +118,7 @@ def get_from_url_list(urls_list: list, proxy=None) -> tuple:
             last_error = e
             continue
     if last_error:
-        raise PKIUrlError(last_error)
+        raise last_error
 
 
 def update_crl(crl: 'Crl'):
@@ -165,7 +165,7 @@ def update_crl(crl: 'Crl'):
                 continue
 
     if last_error:
-        raise PKIUrlError(value=e)
+        raise last_error
 
     return crl
 
