@@ -1,9 +1,9 @@
-{% extends 'django-pkiman/mgmt/base.html' %}
+{% extends 'django-pkiman/base.html' %}
 {% block mgmt-subnav-upload %}
   <li class="uk-active"><a href="">Загрузка</a></li>
 {% endblock %}
 
-{% block mgmt %}
+{% block left_block %}
   {# TODO - Заменить форму загрузки файла на JS#}
   {#  <div class="js-upload uk-placeholder uk-text-center">#}
   {#    <span uk-icon="icon: cloud-upload"></span>#}
@@ -97,9 +97,9 @@
       <legend class="uk-legend">Загрузка файлов</legend>
       {#       Fileform#}
       <div class="uk-margin" uk-margin>
-        <div uk-form-custom="target: true">
+        <div class="uk-width-1-2" uk-form-custom="target: true">
           {{ file_form.file }}
-          <input class="uk-input uk-form-width-medium" type="text" placeholder="Выберите файл"
+          <input class="uk-input" type="text" placeholder="Выберите файл"
                  aria-label="Custom controls"
                  disabled>
         </div>
@@ -116,9 +116,10 @@
         </div>
       {% endif %}
       <hr>
+
       {# URLForm #}
       <div class="uk-margin" uk-margin>
-        <div uk-form-custom="target: true">
+        <div class="uk-width-1-2" uk-form-custom="target: true">
           {{ url_form.file }}
         </div>
         <button class="uk-button uk-button-primary uk-padding-remove" name="action" value="url_uploads"><span
@@ -128,6 +129,19 @@
           <div class="uk-list">
             <ul>
               {% for error in url_form.file.errors %}
+                <li class="uk-text-danger">{{ error }}</li>
+              {% endfor %}
+            </ul>
+          </div>
+        {% endif %}
+        <div>
+          {{ url_form.proxy }}
+        </div>
+          <small>{{ url_form.proxy.help_text }}</small>
+      {% if url_form.proxy.errors %}
+          <div class="uk-list">
+            <ul>
+              {% for error in url_form.proxy.errors %}
                 <li class="uk-text-danger">{{ error }}</li>
               {% endfor %}
             </ul>

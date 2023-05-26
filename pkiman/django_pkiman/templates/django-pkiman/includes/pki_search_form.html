@@ -1,6 +1,7 @@
 <div class="uk-margin">
   <form class="uk-search uk-search-default uk-width-expand">
-    <a href="" class="uk-search-icon-flip" uk-search-icon></a>
-    <input class="uk-search-input" type="search" placeholder="Поиск" aria-label="Search">
+    <button type="submit" class="uk-search-icon-flip" uk-search-icon></button>
+    {{ form.s }}
+    <input type="hidden" name="pki" value="{{ pki_type }}">
   </form>
 </div>

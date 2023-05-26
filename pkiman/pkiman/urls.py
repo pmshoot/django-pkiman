@@ -19,14 +19,15 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
 
-from django_pkiman.admin import admin_site
+from django_pkiman.admin import pki_admin
 
 urlpatterns = [
     path('', include('django_pkiman.urls')),
     path('accounts/', include('django.contrib.auth.urls')),
-    path('pkiadmin/', admin_site.urls),
+    path('pkiadmin/', pki_admin.urls),
     path('admin/', admin.site.urls),
-]
+    ]
 
 if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT
+                          )

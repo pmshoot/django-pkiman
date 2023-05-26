@@ -1,97 +1,105 @@
 {% load static humanize pkimantags %}
 {% if object_list.exists %}
-  {% include 'django-pkiman/includes/pki_search_form.html' %}
   <table class="uk-table uk-table-hover uk-table-justify uk-text-small uk-table-divider">
     <thead>
-    <tr>
-      <th colspan="2" class="uk-text-center">Данные сертификата</th>
-      <th colspan="5" class="uk-text-center">Данные списка отзыва</th>
-    </tr>
-    <tr>
-      {# Данные сертификата #}
-      <th style="width: 1.5em;"></th>
-      <th class="uk-padding-remove-vertical">Издатель</th>
-      <th class="uk-padding-remove-vertical">ID / SERIAL / FINGERPRINT</th>
-      {# Данные списка отзыва #}
-      <th class="uk-padding-remove-vertical">№</th>
-      <th class="uk-padding-remove-vertical">Период действия</th>
-      <th class="uk-padding-remove-vertical" style="width: 1em;" title="Срок действия закончится"><span
-          uk-icon="icon: ban"></span></th>
-      <th class="uk-padding-remove-vertical" title="Загрузить файл списка отзыва"><span
-          uk-icon="icon: download"></span></th>
-      {# Планировщик #}
-      <th class="uk-padding-remove-vertical" title="Планировщик"><span uk-icon="icon: future"></span></th>
-      {% if mgmt %}
-        <th></th>
-        <th></th>
-      {% endif %}
+    <tr class="uk-background-muted">
+      <th class="uk-table-shrink">Сертификат</th>
+      <th class="uk-table-expand">Список отзыва</th>
+      <th class="uk-table-shrink">Период</th>
+      <th class="uk-table-shrink">Файл</th>
+      <th>Планировщик</th>
     </tr>
     </thead>
     <tbody>
     {% for item in object_list %}
       {% with item.is_valid as item_is_valid %}
-        <tr{% if not item_is_valid %} class="uk-text-warning"{% endif %}>
-          {# Данные сертификата #}
-          <td class="uk-padding-remove-vertical"><a href="#" class="uk-icon-link" uk-icon="icon: info"></a></td>
+        <tr{% if not item_is_valid or item.come_to_end %} style="background-color: rgba(255,228,181,0.52)"{% endif %}>
+          {# Certificate #}
           <td class="uk-padding-remove-vertical uk-table-expand" title="{{ item.issuer.subject_as_text }}">
-            {{ item.issuer }}
+            <div><a href="#">{{ item.issuer }}</a></div>
+            <div><small style="font-family: monospace">ID:{{ item.issuer.subject_identifier }}</small></div>
+            <div><small style="font-family: monospace">SN:{{ item.issuer.serial }}</small></div>
           </td>
-          <td class="uk-padding-remove-vertical uk-table-shrink" style="font-size: .8em">
-            <code><span class="uk-text-muted">ID:</span> {{ item.issuer.subject_identifier }}</code>
-            <code><span class="uk-text-muted">SN:</span> {{ item.issuer.serial }}</code>
-            <code><span class="uk-text-muted">FP:</span> <small>{{ item.fingerprint }}</small></code>
-          </td>
-          {# Данные списка отзыва #}
-          <td class="uk-padding-remove-vertical uk-table-shrink"><code>
-            {{ item.crl_number|default_if_none:'-' }}</code>
-          </td>
+          {# Crl data #}
           <td class="uk-padding-remove-vertical uk-table-shrink">
-            <code>&nbsp;C: {{ item.last_update|date:"SHORT_DATETIME_FORMAT" }}</code>
-            <code{% if not item_is_valid %}
-              class="uk-text-danger"{% endif %}>До: {{ item.next_update|date:"SHORT_DATETIME_FORMAT" }}</code>
-          </td>
-          <td class="uk-padding-remove-vertical" style="font-size: .8em">{% if not item_is_valid %}
-            <i class="uk-text-danger" uk-icon="icon: ban"></i>
-            {% else %}{{ item.next_update|naturaltime }}
-          {% endif %}</td>
-          <td class="uk-padding-remove-vertical"><a href="{{ item.get_absolute_url }}"><span
-              uk-icon="icon: file-text"></span></a>
-          </td>
-          {# Планировщик #}
-          <td class="uk-padding-remove-vertical">
+            <div style="font-family: monospace"><a href="#">FP:{{ item.fingerprint }}</a></div>
+            <div><small style="font-family: monospace">#:{{ item.crl_number|default_if_none:'-' }}</small></div>
             <div>
-              {#                {% if item.schedule %}#}
-              {#                  <code>Last: {{ item.schedule.f_sync|default_if_none:'-' }}</code>#}
-              {#                {% else %}#}
-              {#                  <div>-</div>#}
-              {#                {% endif %}#}
-              {% if item.f_sync %}
-                <small>{{ item.f_sync }}</small>
+              {% for tag in item.tags.all %}
+                <code><small title="Тег"><a class="uk-link-reset" href="{% url 'pkiman:index' %}?pki={{ pki_type }}&s=tag:{{ tag.slug }}">{{ tag }}</a></small></code>
+              {% endfor %}
+            </div>
+          </td>
+          {# Crl period #}
+          <td class="uk-padding-remove-vertical uk-table-shrink">
+            <div style="font-family: monospace" class="uk-text-nowrap">
+              &nbsp;C: {{ item.last_update|date:"SHORT_DATETIME_FORMAT" }}</div>
+            <div style="font-family: monospace"
+                 class="uk-text-nowrap{% if not item_is_valid %} uk-text-danger{% endif %}">
+              До: {{ item.next_update|date:"SHORT_DATETIME_FORMAT" }}</div>
+            <div class="uk-text-nowrap">
+              {% if not item_is_valid %}
+                <small class="uk-text-danger uk-text-bold">истек</small>
+              {% else %}
+                <small{% if item.come_to_end %}
+                  class="uk-text-danger uk-text-bold"{% endif %}>истекает {{ item.next_update|naturaltime }}</small>
               {% endif %}
             </div>
+          </td>
+          {# File #}
+          <td class="uk-padding-remove-vertical">
+            <small class="uk-text-nowrap">
+              <div title="загружен"><i uk-icon="icon: cloud-download; ratio: .7"></i> {{ item.created_at }}</div>
+              <div title="обновлен"><i uk-icon="icon: refresh; ratio: .7"></i> {{ item.updated_at }}</div>
+              {% if item.file_exists %}
+                <a href="{{ item.get_absolute_url }}"><i uk-icon="icon: download; ratio: .7"></i>загрузить</a>
+              {% else %}
+                <span uk-icon="icon: warning" class="uk-text-danger" title="No file found"></span>
+              {% endif %}
+            </small>
+          </td>
+          {# Планировщик #}
+          <td class="uk-padding-remove-vertical uk-table-shrink uk-text-nowrap">
+            {# Settings #}
             {% if mgmt %}
-              <small>
-                <a href="{% url 'pkiadmin:django_pkiman_crl_change' item.pk %}?next={% url 'pkiman:reestr' %}?pki={{ pki_type }}">Настроить</a>
-              </small>
+              <div><small>
+                <a href="{% url 'pkiadmin:pkiman_crl_change' item.pk %}?next={% url 'pkiman:index' %}?pki={{ pki_type }}">
+                  <i uk-icon="icon: settings; ratio: 0.7"></i>настроить</a>
+              </small></div>
+            {% endif %}
+            {# Schedule #}
+            <div>
+              {% if item.schedule %}
+                <span><small><i uk-icon="icon: clock; ratio: .7"></i>
+                  {% if item.active %}
+                    {{ item.schedule|default_if_none:'-' }}
+                  {% else %}
+                    <del title="деактивирован">{{ item.schedule|default_if_none:'-' }}</del>
+                  {% endif %}
+                </small></span>
+              {% elif item.urls %}
+                <span><small><i uk-icon="icon: clock; ratio: .7"></i> не установлен</small></span>
+              {% endif %}
+            </div>
+            {# Sync #}
+            {% if item.f_sync %}
+              <div><small title="последняя синхронизация"><i uk-icon="icon: refresh; ratio: .7"></i> {{ item.f_sync }}
+              </small></div>
+            {% endif %}
+            {# Run update #}
+            {% if mgmt and item.urls %}
+              <div title="запустить обновление"><small>
+                <a style="color: #107e5c" href="{% url 'pkiman:update_crl' item.pk %}?pki=crl"><i
+                    uk-icon="icon: play"></i>обновить</a>
+              </small></div>
             {% endif %}
           </td>
-          {% if mgmt %}
-            <td class="uk-padding-remove-vertical" title="Запустить обновление">
-              {% if item.urls %}
-                <a href="{% url 'pkiman:update_crl' item.pk %}?pki=crl" style="color: forestgreen"
-                   uk-icon="icon: play; ratio: 1.5"></a>
-              {% endif %}
-            </td>
-            <td class="uk-padding-remove-vertical" title="Удалить">
-              <a href="{% url 'pkiadmin:django_pkiman_crl_delete' item.pk %}?next={% url 'pkiman:reestr' %}?pki={{ pki_type }}"
-                 uk-icon="icon: trash" style="color: #ec2147"></a>
-            </td>
-          {% endif %}
         </tr>
       {% endwith %}
     {% endfor %}
     </tbody>
   </table>
+  {% include 'django-pkiman/includes/paginator.html' %}
 {% else %}
-  <div>Ни одного списка отзыва еще не загружено</div>
+  <div>Списки отзыва не найдены</div>
 {% endif %}

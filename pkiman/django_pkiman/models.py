@@ -1,13 +1,17 @@
 import datetime
-import os
 
+from django.conf import settings
 from django.contrib import admin
 from django.core.exceptions import MultipleObjectsReturned
 from django.db import models, transaction
+from django.db.models import Q
 from django.db.models.indexes import Index
 from django.db.models.signals import post_delete, pre_save
 from django.dispatch import receiver
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
+from taggit.managers import TaggableManager
+from taggit.models import TagBase, GenericTaggedItemBase
 from treebeard.mp_tree import MP_Node, MP_NodeManager
 
 from django_pkiman.errors import PKICrtDoesNotFoundError, PKICrtMultipleFoundError, PKIDuplicateError, PKIOldError
@@ -15,11 +19,29 @@ from django_pkiman.utils import clean_file_name
 from django_pkiman.utils.pki_parser import PKIObject
 
 DEFAULT_JOURNAL_LAST_RECORDS = 50
+DEFAULT_PKIMAN_MAX_OLD_PKI_TIME = getattr(settings, 'PKIMAN_MAX_OLD_PKI_TIME', 12)
 
 
 # todo - путь cdp вынести в настройки для возможности смены
 def get_upload_file_path(instance, *args):
     return f'cdp/{instance.upload_file_path()}'
+
+
+# Tags model
+class PKITag(TagBase):
+    desc = models.TextField('Описание', blank=True)
+
+    class Meta:
+        verbose_name = _("Tag")
+        verbose_name_plural = _("Tags")
+
+
+class TaggedPKI(GenericTaggedItemBase):
+    tag = models.ForeignKey(
+        PKITag,
+        on_delete=models.CASCADE,
+        related_name="%(app_label)s_%(class)s_items",
+        )
 
 
 # Managers
@@ -37,6 +59,12 @@ class CrtManager(MP_NodeManager):
                 subject_dn=pki.subject,
                 serial=pki.subject_serial_number
                 )
+
+            # обновляем, в случае отсутствия файла на диске
+            if not object.file_exists():
+                object.file = pki.up_file
+                object.save()
+                created = True
 
         except self.model.DoesNotExist:
             created = True
@@ -88,9 +116,40 @@ class CrtManager(MP_NodeManager):
 
         return object, created
 
+    def get_root_ca_qs(self):
+        return self.filter(is_root_ca=True, is_ca=True).prefetch_related('crl', 'tags')
+
+    def get_ca_qs(self):
+        return self.filter(is_root_ca=False, is_ca=True).prefetch_related('crl', 'tags')
+
+    def get_leaf_qs(self):
+        return self.filter(is_root_ca=False, is_ca=False)
+
+    def get_reestr(self):
+        return self.get_queryset()
+
+    def get_critical_count(self):
+        max_datetime = timezone.now() + datetime.timedelta(hours=DEFAULT_PKIMAN_MAX_OLD_PKI_TIME)
+        return self.filter(Q(valid_before__lte=max_datetime) | Q(revoked_date__isnull=False)).count()
+
+
+class PKIAddonsMixin:
+    def get_absolute_url(self):
+        if self.file_exists():
+            return self.file.url
+        return '#'
+
+    def file_exists(self):
+        return bool(self.file.name) and self.file.storage.exists(self.file.name)
+
+    def tag_list(self):
+        if self.tags.exists():
+            return ', '.join(self.tags.all().values_list('slug', flat=True))
+        return ''
+
 
 # Models
-class Crt(MP_Node):
+class Crt(PKIAddonsMixin, MP_Node):
     """Сертификаты"""
     subject_identifier = models.CharField('идентификатор субъекта',
                                           max_length=128, null=True, db_index=True)
@@ -106,20 +165,23 @@ class Crt(MP_Node):
     file = models.FileField('ссылка на файл', upload_to=get_upload_file_path)
     valid_after = models.DateTimeField('Действителен с')
     valid_before = models.DateTimeField('Действителен до')
-    is_ca = models.BooleanField('корневой', default=False)
-    is_root_ca = models.BooleanField('удостоверяющий', default=False)
+    is_ca = models.BooleanField('удостоверяющий', default=False)
+    is_root_ca = models.BooleanField('корневой', default=False)
     revoked_date = models.DateTimeField('отозван', null=True)
     cdp_info = models.JSONField('точки распространения СОС УЦ', null=True)
     auth_info = models.JSONField('точки распространения УЦ', null=True)
     created_at = models.DateTimeField('загружен', auto_now_add=True, editable=False)
+    comment = models.TextField('комментарий', blank=True)
 
     objects = CrtManager()
+    tags = TaggableManager(blank=True, through=TaggedPKI)
     node_order_by = ['subject_dn']
 
     class Meta:
         verbose_name = 'Сертификат'
         verbose_name_plural = 'Сертификаты'
         unique_together = ('issuer_dn', 'serial')  # RFC 5280 4.1.2.2
+        permissions = [('pki_admin', 'Администратор PKI')]
         indexes = (
             Index(name='crt_get_issuer_idx', fields=('subject_dn', 'subject_identifier')),
             Index(name='crt_filter_orphans_idx', fields=('issuer_dn',
@@ -127,9 +189,12 @@ class Crt(MP_Node):
                                                          'issuer',
                                                          'is_root_ca',
                                                          )),
+            Index(name='crt_get_by_type', fields=('is_root_ca',
+                                                  'is_ca',
+                                                  )),
             Index(name='crl_get_issuer_crt', fields=('subject_dn',
                                                      'subject_identifier',
-                                                     'serial'))
+                                                     'serial')),
             )
 
     def __str__(self):
@@ -137,9 +202,6 @@ class Crt(MP_Node):
 
     def name(self):
         return self.cn or self.subject_as_text()
-
-    def get_absolute_url(self):
-        return self.file.url
 
     @property
     @admin.display(description='Наименование')
@@ -209,16 +271,42 @@ class Crt(MP_Node):
         ftype = 'crt'
         return f'{ftype}/{name}.{ftype}'
 
+    @property
+    def user_pki_store(self):
+        """Тип хранилища на ПК пользователя для записи в индекс-файл"""
+        if self.is_root_ca:
+            return 'Root'
+        if self.is_ca:
+            return 'CA'
+        return 'AddressBook'
+
+    @property
+    def user_pki_type(self):
+        return 'CRT'
+
+    def get_cdp_list(self):
+        if self.auth_info:
+            cdp_list = self.auth_info.get('caIssuers')
+            if not cdp_list:
+                return
+            if isinstance(cdp_list, str):
+                cdp_list = [cdp_list]
+            return cdp_list
+
+    def come_to_end(self):
+        max_hours_to_end = DEFAULT_PKIMAN_MAX_OLD_PKI_TIME
+        remains = self.valid_before - timezone.now()
+        return remains < datetime.timedelta(hours=max_hours_to_end)
+
     # todo - add func для проверки наличия файла на диске
 
 
 @receiver(post_delete, sender=Crt, weak=False)
 def delete_crt_object(sender, instance: Crt, **kwargs):
     """Удаляет файл на диске после удаления объекта"""
-    fpath = instance.file.file.name
-    if os.path.exists(fpath):
+    if hasattr(instance, 'file'):
         try:
-            os.unlink(fpath)
+            instance.file.delete(False)
         except Exception:
             pass
 
@@ -277,8 +365,21 @@ class CrlManager(models.Manager):
 
         return object, created
 
+    def get_root_ca_qs(self):
+        return self.filter(issuer__is_root_ca=True, issuer__is_ca=True)
 
-class Crl(models.Model):
+    def get_ca_qs(self):
+        return self.filter(issuer__is_root_ca=False, issuer__is_ca=True)
+
+    def get_reestr(self):
+        return self.get_queryset().order_by('issuer__path')
+
+    def get_critical_count(self):
+        max_datetime = timezone.now() + datetime.timedelta(hours=DEFAULT_PKIMAN_MAX_OLD_PKI_TIME)
+        return self.filter(next_update__lte=max_datetime).count()
+
+
+class Crl(PKIAddonsMixin, models.Model):
     """Списки отзыва"""
     issuer = models.OneToOneField('Crt', verbose_name='Сертификат', on_delete=models.CASCADE, related_name='crl')
     fingerprint = models.CharField('отпечаток', max_length=64, unique=True)
@@ -311,7 +412,8 @@ class Crl(models.Model):
         )
     no_proxy = models.BooleanField('не использовать прокси', default=False)
     created_at = models.DateTimeField(auto_now_add=True, editable=False)
-    edited_at = models.DateTimeField(auto_now=True, editable=False)
+    updated_at = models.DateTimeField(auto_now=True, editable=False)
+    comment = models.TextField('комментарий', blank=True)
     # last remote file data
     f_date = models.DateTimeField('дата файла', null=True)
     f_size = models.PositiveSmallIntegerField('размер файла', null=True)
@@ -319,6 +421,7 @@ class Crl(models.Model):
     f_sync = models.DateTimeField('дата последней синхронизации', null=True)
 
     objects = CrlManager()
+    tags = TaggableManager(blank=True, through=TaggedPKI)
 
     class Meta:
         verbose_name = 'Список отзыва'
@@ -327,9 +430,6 @@ class Crl(models.Model):
 
     def __str__(self):
         return self.issuer.upload_file_name()
-
-    def get_absolute_url(self):
-        return self.file.url
 
     def is_valid(self):
         return timezone.now() < self.next_update
@@ -348,14 +448,29 @@ class Crl(models.Model):
         ftype = 'crl'
         return f'{ftype}/{name}.{ftype}'
 
+    def come_to_end(self):
+        max_hours_to_end = DEFAULT_PKIMAN_MAX_OLD_PKI_TIME
+        remains = self.next_update - timezone.now()
+        return remains < datetime.timedelta(hours=max_hours_to_end)
+
+    @property
+    def user_pki_store(self):
+        """Тип хранилища на ПК пользователя для записи в индекс-файл"""
+        if self.issuer.is_root_ca:
+            return 'Root'
+        return 'CA'
+
+    @property
+    def user_pki_type(self):
+        return 'CRL'
+
 
 @receiver(post_delete, sender=Crl, weak=False)
 def delete_crl_object(sender, instance: Crl, **kwargs):
     """Удаление файла на диске после удаления объекта"""
-    fpath = instance.file.file.name
-    if os.path.exists(fpath):
+    if hasattr(instance, 'file'):
         try:
-            os.unlink(fpath)
+            instance.file.delete(False)
         except Exception:
             pass
 
@@ -438,6 +553,15 @@ class ProxyManager(models.Manager):
         except Exception:
             pass
 
+    def get_active(self):
+        return self.filter(is_active=True)
+
+    def get_form_choices(self):
+        yield '', '-----'
+        if self.get_active().exists():
+            for proxy in self.get_active():
+                yield proxy.pk, proxy.name
+
 
 class Proxy(models.Model):
     name = models.CharField('наименование',
@@ -458,6 +582,11 @@ class Proxy(models.Model):
                                      help_text='при выборе данный прокси сервер будет использоваться по-умолчанию при загрузке файлов',
                                      default=False,
                                      db_index=True)
+    is_active = models.BooleanField('действующий прокси',
+                                    default=True,
+                                    help_text='при отключенной опции данный прокси сервер не будет отображаться в '
+                                              'списке доступных серверов'
+                                    )
 
     objects = ProxyManager()
 
@@ -467,7 +596,6 @@ class Proxy(models.Model):
         ordering = ('name',)
 
     def __str__(self):
-        # return f'{self.proxy_user}:***@{self.url}' if self.proxy_user else self.url
         return self.name
 
     def get_url(self):

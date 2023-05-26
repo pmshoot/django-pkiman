@@ -29,7 +29,8 @@ ALLOWED_HOSTS = ['127.0.0.1']
 # Application definition
 
 INSTALLED_APPS = [
-    'django_pkiman.apps.PKIAdminConfig',
+    # 'django_pkiman.apps.PKIAdminConfig',
+    'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
@@ -37,8 +38,9 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django.contrib.humanize',
     'django_crontab',
+    'taggit',
     'django_pkiman.apps.DjangoPkimanConfig',
-]
+    ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -48,7 +50,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-]
+    ]
 
 ROOT_URLCONF = 'pkiman.urls'
 
@@ -63,10 +65,10 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-            ],
+                ],
+            },
         },
-    },
-]
+    ]
 
 WSGI_APPLICATION = 'pkiman.wsgi.application'
 
@@ -77,8 +79,8 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
+        }
     }
-}
 
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
@@ -86,17 +88,17 @@ DATABASES = {
 AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
+        },
     {
         'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-    },
+        },
     {
         'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
+        },
     {
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    },
-]
+        },
+    ]
 
 # Internationalization
 # https://docs.djangoproject.com/en/4.2/topics/i18n/
@@ -110,7 +112,7 @@ USE_L10N = True
 
 USE_TZ = True
 
-LOGIN_REDIRECT_URL = 'pkiman:reestr'
+LOGIN_REDIRECT_URL = 'pkiman:index'
 LOGOUT_REDIRECT_URL = 'pkiman:index'
 
 # Static files (CSS, JavaScript, Images)
@@ -120,7 +122,7 @@ STATIC_URL = 'assets/'
 STATIC_ROOT = BASE_DIR / 'assets'
 STATICFILES_DIRS = (
     BASE_DIR / 'django_pkiman/static/django_pkiman',
-)
+    )
 MEDIA_URL = 'store/'
 MEDIA_ROOT = BASE_DIR / 'store'
 
@@ -135,6 +137,10 @@ FIRST_DAY_OF_WEEK = 1
 # --- PKIMAN ---
 # Период хранения записей журнала в БД (дни)
 # PKIMAN_JOURNAL_STORE_PERIOD = 365
+# Крайнее дата/время срока действия PKI
+# PKIMAN_MAX_OLD_PKI_TIME = 12  # hours
+# Количество PKI на странице (paging)
+# PKIMAN_PAGINATE_BY = 20
 
 # Периодический запуск функции обновления CRL
 # MIN HOURS DAY MONTH WEEKDAY
@@ -142,4 +148,4 @@ CRONJOBS = [
     # ('*/15 12-18 * * *', 'django_pkiman.utils.download.update_handle'),
     ('1 0-23 * * *', 'django_pkiman.utils.download.update_handle'),
     # ('0 0 1 * *', 'django_pkiman.utils.logger.journal_clean')
-]
+    ]

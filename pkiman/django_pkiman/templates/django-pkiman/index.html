@@ -1,5 +1,9 @@
-{% extends 'django-pkiman/base.html' %}
+{% extends 'django-pkiman/base.html' %}{% load pkimantags %}
+{% block mgmt-subnav-reestr %}
+  <li class="uk-active"><a href="">{{ 'all'|pki_critical_period_tag }} Реестр</a></li>
+{% endblock %}
 {% block left_block %}
+  {% include 'django-pkiman/includes/pki_search_form.html' %}
   {% if pki_type == 'crt' %}
     {% include 'django-pkiman/includes/crt_list.html' %}
   {% elif pki_type == 'crl' %}
@@ -10,9 +14,12 @@
 {% block right_block %}
   {% if url_path %}
     <div class="uk-padding-small">
-      <ul class="uk-nav uk-nav-default" uk-margin>
-        <li{% if pki_type == 'crt' %} class="uk-active"{% endif %}><a href="{{ url_path }}?pki=crt">Сертификаты</a></li>
-        <li{% if pki_type == 'crl' %} class="uk-active"{% endif %}><a href="{{ url_path }}?pki=crl">Списки отзыва</a>
+      <ul class="uk-tab-right" uk-tab>
+        <li{% if pki_type == 'crt' %} class="uk-active"{% endif %} onclick=window.location="{{ url_path }}?pki=crt">
+          <a>Сертификаты{% if mgmt %} {{ 'crt'|pki_critical_period_tag }}{% endif %}</a>
+        </li>
+        <li{% if pki_type == 'crl' %} class="uk-active"{% endif %} onclick=window.location="{{ url_path }}?pki=crl">
+          <a>Списки отзыва{% if mgmt %} {{ 'crl'|pki_critical_period_tag }}{% endif %}</a>
         </li>
       </ul>
     </div>
