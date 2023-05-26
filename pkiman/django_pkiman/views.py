@@ -1,10 +1,15 @@
+import urllib.parse
+from datetime import datetime
+from pathlib import Path
+
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.db import IntegrityError
 from django.middleware import csrf
-from django.urls import reverse_lazy
+from django.urls import reverse_lazy, resolve
 from django.views.generic import ListView, RedirectView, TemplateView
 from django.views.generic.detail import SingleObjectMixin
+from django.conf import settings
 
 from django_pkiman import forms, models
 from django_pkiman.errors import PKIError, PKIUrlError
@@ -215,6 +220,87 @@ class ManagementScheduleView(LoginRequiredMixin, ManagementModeMixin, ListView):
     template_name = 'django-pkiman/mgmt/schedule.html'
     model = models.CrlUpdateSchedule
     paginate_by = 25
+
+
+class ManagementUrlIndexView(LoginRequiredMixin, ManagementModeMixin, TemplateView):
+    """"""
+    template_name = 'django-pkiman/mgmt/index.html'
+    index_file_name = 'index.txt'
+
+    def setup(self, request, *args, **kwargs):
+        super().setup(request, *args, **kwargs)
+        self.index_file = Path(
+            settings.BASE_DIR,
+            settings.MEDIA_ROOT,
+            self.index_file_name
+            )
+
+    def get_store_path(self, request):
+        absolute_uri = request.build_absolute_uri()
+        server_path = absolute_uri.split(request.path_info.strip('/'))[0]
+        store_url = urllib.parse.urljoin(server_path, settings.MEDIA_URL)
+        return store_url
+
+    def get_context_data(self, **kwargs):
+        if self.index_file.exists():
+            file_stat = self.index_file.stat()
+            index_file = {
+                'fname': self.index_file.name,
+                'fsize': file_stat.st_size,
+                'fdate': datetime.fromtimestamp(file_stat.st_mtime),
+                }
+            kwargs['index_file'] = index_file
+            kwargs['index_list'] = self.get_index_list(self.request)
+        return super().get_context_data(**kwargs)
+
+    def get_index_list(self, request):
+        """"""
+        index_list = ['# [ХРАНИЛИЩЕ]\t[ТИП]\t[ПУТЬ]\n']
+        info_list = (
+            ('Корневые сертификаты / СОС', models.Crt.objects.get_root_ca_qs()),
+            ('Промежуточные сертификаты / СОС', models.Crt.objects.get_ca_qs()),
+            ('Конечные сертификаты / СОС', models.Crt.objects.get_leaf_qs()),
+            )
+        for info, queryset in info_list:
+            index_list.extend(self._generate_index_block(info, queryset))
+        return index_list
+
+    def _generate_index_block(self, info, queryset):
+        index_block = [f'# ----- {info} {"-" * (140 - len(info))}\n']
+        get_index_line = self._get_index_line_wrapper()
+        for object in queryset:
+            index_block.extend(get_index_line(object))
+            if hasattr(object, 'crl'):
+                object = object.crl
+                index_block.extend(get_index_line(object))
+        return index_block
+
+    def _get_index_line_wrapper(self):
+        server_path = self.get_store_path(self.request)
+        line_template = "{store}\t{type}\t{url}\n"
+        data = {}
+
+        def inner(object):
+            if object.file_exists():
+                data['store'] = object.user_pki_store
+                data['type'] = object.user_pki_type
+                data['url'] = urllib.parse.urljoin(server_path, object.file.url)
+                return [line_template.format(**data)]
+            return []
+
+        return inner
+
+    def post(self, request, *args, **kwargs):
+        """"""
+        index_list = self.get_index_list(request)
+        with self.index_file.open('w', encoding='utf-8') as fp:
+            fp.writelines(index_list)
+        return super().get(request, *args, **kwargs)
+
+    def get_index_list_from_file(self, request):
+        if self.index_file.exists():
+            with self.index_file.open('rt', encoding='utf-8') as fp:
+                yield fp.readline()
 
 
 class DocsView(TemplateView):

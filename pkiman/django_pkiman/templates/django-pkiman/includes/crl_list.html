@@ -54,8 +54,12 @@
             <i class="uk-text-danger" uk-icon="icon: ban"></i>
             {% else %}{{ item.next_update|naturaltime }}
           {% endif %}</td>
-          <td class="uk-padding-remove-vertical"><a href="{{ item.get_absolute_url }}"><span
-              uk-icon="icon: file-text"></span></a>
+          <td class="uk-padding-remove-vertical">
+             {% if item.file_exists %}
+              <a href="{{ item.get_absolute_url }}"><span uk-icon="icon: file-text"></span></a>
+            {% else %}
+              <span uk-icon="icon: warning" class="uk-text-danger" title="No file found"></span>
+            {% endif %}
           </td>
           {# Планировщик #}
           <td class="uk-padding-remove-vertical">
@@ -83,8 +87,9 @@
               {% endif %}
             </td>
             <td class="uk-padding-remove-vertical" title="Удалить">
-              <a href="{% url 'pkiadmin:django_pkiman_crl_delete' item.pk %}?next={% url 'pkiman:reestr' %}?pki={{ pki_type }}"
-                 uk-icon="icon: trash" style="color: #ec2147"></a>
+              <a href="{% url 'pkiadmin:django_pkiman_crl_delete' item.pk %}?next={% url 'pkiman:reestr' %}?pki={{ pki_type }}">
+                <span uk-icon="icon: trash; ratio: 2" style="color: #ec2147"></span>
+              </a>
             </td>
           {% endif %}
         </tr>

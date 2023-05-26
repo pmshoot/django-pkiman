@@ -38,6 +38,12 @@ class CrtManager(MP_NodeManager):
                 serial=pki.subject_serial_number
                 )
 
+            # обновляем, в случае отсутствия файла на диске
+            if not object.file_exists():
+                object.file = pki.up_file
+                object.save()
+                created = True
+
         except self.model.DoesNotExist:
             created = True
             pki_data = {
@@ -88,9 +94,28 @@ class CrtManager(MP_NodeManager):
 
         return object, created
 
+    def get_root_ca_qs(self):
+        return self.filter(is_root_ca=True, is_ca=True)  # .select_related('crl')
+
+    def get_ca_qs(self):
+        return self.filter(is_root_ca=False, is_ca=True)
+
+    def get_leaf_qs(self):
+        return self.filter(is_root_ca=False, is_ca=False)
+
+
+class FileExistsMixin:
+    def get_absolute_url(self):
+        if self.file_exists():
+            return self.file.url
+        return '#'
+
+    def file_exists(self):
+        return bool(self.file.name) and self.file.storage.exists(self.file.name)
+
 
 # Models
-class Crt(MP_Node):
+class Crt(FileExistsMixin, MP_Node):
     """Сертификаты"""
     subject_identifier = models.CharField('идентификатор субъекта',
                                           max_length=128, null=True, db_index=True)
@@ -106,8 +131,8 @@ class Crt(MP_Node):
     file = models.FileField('ссылка на файл', upload_to=get_upload_file_path)
     valid_after = models.DateTimeField('Действителен с')
     valid_before = models.DateTimeField('Действителен до')
-    is_ca = models.BooleanField('корневой', default=False)
-    is_root_ca = models.BooleanField('удостоверяющий', default=False)
+    is_ca = models.BooleanField('удостоверяющий', default=False)
+    is_root_ca = models.BooleanField('корневой', default=False)
     revoked_date = models.DateTimeField('отозван', null=True)
     cdp_info = models.JSONField('точки распространения СОС УЦ', null=True)
     auth_info = models.JSONField('точки распространения УЦ', null=True)
@@ -127,9 +152,12 @@ class Crt(MP_Node):
                                                          'issuer',
                                                          'is_root_ca',
                                                          )),
+            Index(name='crt_get_by_type', fields=('is_root_ca',
+                                                  'is_ca',
+                                                  )),
             Index(name='crl_get_issuer_crt', fields=('subject_dn',
                                                      'subject_identifier',
-                                                     'serial'))
+                                                     'serial')),
             )
 
     def __str__(self):
@@ -137,9 +165,6 @@ class Crt(MP_Node):
 
     def name(self):
         return self.cn or self.subject_as_text()
-
-    def get_absolute_url(self):
-        return self.file.url
 
     @property
     @admin.display(description='Наименование')
@@ -209,16 +234,31 @@ class Crt(MP_Node):
         ftype = 'crt'
         return f'{ftype}/{name}.{ftype}'
 
+    @property
+    def user_pki_store(self):
+        """Тип хранилища на ПК пользователя для записи в индекс-файл"""
+        if self.is_root_ca:
+            return 'Root'
+        if self.is_ca:
+            return 'CA'
+        return 'AddressBook'
+
+    @property
+    def user_pki_type(self):
+        return 'CRT'
+
     # todo - add func для проверки наличия файла на диске
 
 
 @receiver(post_delete, sender=Crt, weak=False)
 def delete_crt_object(sender, instance: Crt, **kwargs):
     """Удаляет файл на диске после удаления объекта"""
-    fpath = instance.file.file.name
-    if os.path.exists(fpath):
+    if hasattr(instance, 'file'):
+        # fpath = instance.file.path
+        # if os.path.exists(fpath):
         try:
-            os.unlink(fpath)
+            # os.unlink(fpath)
+            instance.file.delete()
         except Exception:
             pass
 
@@ -277,8 +317,14 @@ class CrlManager(models.Manager):
 
         return object, created
 
+    def get_root_ca_qs(self):
+        return self.filter(issuer__is_root_ca=True, issuer__is_ca=True)
 
-class Crl(models.Model):
+    def get_ca_qs(self):
+        return self.filter(issuer__is_root_ca=False, issuer__is_ca=True)
+
+
+class Crl(FileExistsMixin, models.Model):
     """Списки отзыва"""
     issuer = models.OneToOneField('Crt', verbose_name='Сертификат', on_delete=models.CASCADE, related_name='crl')
     fingerprint = models.CharField('отпечаток', max_length=64, unique=True)
@@ -328,9 +374,6 @@ class Crl(models.Model):
     def __str__(self):
         return self.issuer.upload_file_name()
 
-    def get_absolute_url(self):
-        return self.file.url
-
     def is_valid(self):
         return timezone.now() < self.next_update
 
@@ -347,6 +390,17 @@ class Crl(models.Model):
         name = self.issuer.upload_file_name()
         ftype = 'crl'
         return f'{ftype}/{name}.{ftype}'
+
+    @property
+    def user_pki_store(self):
+        """Тип хранилища на ПК пользователя для записи в индекс-файл"""
+        if self.issuer.is_root_ca:
+            return 'Root'
+        return 'CA'
+
+    @property
+    def user_pki_type(self):
+        return 'CRL'
 
 
 @receiver(post_delete, sender=Crl, weak=False)

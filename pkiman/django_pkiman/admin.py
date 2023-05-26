@@ -1,7 +1,9 @@
-from django.contrib import admin
+import os
+
+from django.contrib import admin, messages
 from django.contrib.auth.models import Group, User
 from django.http import HttpResponseRedirect
-
+from treebeard.admin import TreeAdmin
 from django_pkiman.forms import CrlModelForm, CrlUpdateScheduleModelForm, ProxyModelForm
 from django_pkiman.models import Crl, CrlUpdateSchedule, Crt, Proxy
 
@@ -49,7 +51,9 @@ class CrtAdmin(PKIModelAdminMixin, admin.ModelAdmin):
                     'serial',
                     'valid_after',
                     'valid_before',
+                    'file_exists',
                     )
+    actions = None
     fieldsets = [
         ('Субъект', {
             # 'description': '',
@@ -81,6 +85,7 @@ class CrtAdmin(PKIModelAdminMixin, admin.ModelAdmin):
                        'is_root_ca',
                        'revoked_date',
                        'created_at',
+                       'file_exists',
                        )
             }),
         ]
@@ -101,11 +106,39 @@ class CrtAdmin(PKIModelAdminMixin, admin.ModelAdmin):
     def issuer_serial_number(self, obj):
         return obj.issuer_serial_number_hex()
 
+    @admin.display(description='файл', boolean=True)
+    def file_exists(self, obj):
+        return obj.file_exists()
+
     def has_add_permission(self, request):
         return False
 
     def has_change_permission(self, request, obj=None):
         return False
+
+    # def delete_model(self, request, obj):
+    #     return super().delete_model(request, obj)
+    #
+    # def delete_queryset(self, request, queryset):
+    #     for obj in queryset:
+    #         try:
+    #             obj.delete()
+    #             obj.update_from_db()
+    #         except FileExistsError as e:
+    #             self.message_user(request, e, level=messages.WARNING)
+
+    # def delete_queryset(self, request, queryset):
+    #     files = [obj.file.path for obj in queryset if obj.file_exists()]
+    #     try:
+    #         super().delete_queryset(request, queryset)
+    #     except Exception as e:
+    #         raise
+    #     else:
+    #         for fp in files:
+    #             try:
+    #                 os.unlink(fp)
+    #             except Exception as e:
+    #                 pass
 
 
 class CrlAdmin(PKIModelAdminMixin, admin.ModelAdmin):
@@ -114,7 +147,8 @@ class CrlAdmin(PKIModelAdminMixin, admin.ModelAdmin):
     ordering = ('issuer',)
     save_as_continue = False
     save_as = False
-    list_display = ('issuer_name', 'issuer_subject_identifier', 'last_update', 'next_update', 'schedule', 'active')
+    list_display = (
+    'issuer_name', 'issuer_subject_identifier', 'last_update', 'next_update', 'schedule', 'active', 'file_exists')
     readonly_fields = ('issuer',
                        'fingerprint',
                        'file',
@@ -170,8 +204,20 @@ class CrlAdmin(PKIModelAdminMixin, admin.ModelAdmin):
     def issuer_subject_identifier(self, obj):
         return obj.issuer.subject_identifier
 
+    @admin.display(description='файл', boolean=True)
+    def file_exists(self, obj):
+        return obj.file_exists()
+
     def has_add_permission(self, request):
         return False
+
+    def delete_queryset(self, request, queryset):
+        for obj in queryset:
+            try:
+                obj.delete()
+                obj.update_from_db()
+            except FileExistsError as e:
+                self.message_user(request, e, level=messages.WARNING)
 
 
 class CrlUpdateScheduleAdmin(PKIModelAdminMixin, admin.ModelAdmin):

@@ -8,6 +8,8 @@
         <li><a href="{% url 'pkiman:uploads' %}">Загрузка</a></li>{% endblock %}
       {% block mgmt-subnav-schedule %}
         <li><a href="{% url 'pkiman:schedule' %}">Планировщик</a></li>{% endblock %}
+      {% block mgmt-subnav-index %}
+        <li><a href="{% url 'pkiman:url_index_file' %}">Индекс</a></li>{% endblock %}
       {% block mgmt-subnav-journal %}
         <li><a href="{% url 'pkiman:journal' %}">Журнал</a></li>{% endblock %}
     </ul>
