@@ -246,6 +246,15 @@ class Crt(FileExistsMixin, MP_Node):
     def user_pki_type(self):
         return 'CRT'
 
+    def get_cdp_list(self):
+        if self.auth_info:
+            cdp_list = self.auth_info.get('caIssuers')
+            if not cdp_list:
+                return
+            if isinstance(cdp_list, str):
+                cdp_list = [cdp_list]
+            return cdp_list
+
     # todo - add func для проверки наличия файла на диске
 
 

@@ -2,14 +2,14 @@ import urllib.parse
 from datetime import datetime
 from pathlib import Path
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.db import IntegrityError
 from django.middleware import csrf
-from django.urls import reverse_lazy, resolve
+from django.urls import reverse_lazy
 from django.views.generic import ListView, RedirectView, TemplateView
 from django.views.generic.detail import SingleObjectMixin
-from django.conf import settings
 
 from django_pkiman import forms, models
 from django_pkiman.errors import PKIError, PKIUrlError
@@ -189,33 +189,33 @@ class ManagementGetParentCrt(LoginRequiredMixin, PermissionRequiredMixin, Single
     def get(self, request, *args, **kwargs):
         object: 'models.Crt' = self.get_object()
         proxy = Proxy.objects.get_default_proxy_url()
-        parent_crt = None
         # сертификат без родителя, не корневой и есть ссылка на родительский сертификат
         if not object.is_bound() and object.auth_info:
-            try:
-                url_list = object.auth_info.values()
-                up_file = get_from_url_list(url_list, proxy=proxy)
-                pki = PKIObject()
-                pki.read_x509(up_file)
-                parent_crt, _ = self.model.objects.get_from_pki(pki)
-                message = f'Сертификат "ID:{parent_crt.subject_identifier}" успешно загружен'
-                logger.info(message)
-                messages.success(request, message)
-
-                # попытка загрузить список отзыва при успешной загрузке сертификата
-                if object.cdp_info and parent_crt:
-                    url_list = [cdp[0] for cdp in object.cdp_info.values()]
-                    up_file = get_from_url_list(url_list, proxy=proxy)
+            cdp_list = object.get_cdp_list()
+            if cdp_list:
+                try:
+                    up_file = get_from_url_list(cdp_list, proxy=proxy)
+                    pki = PKIObject()
                     pki.read_x509(up_file)
-                    parent_crl, _ = models.Crl.objects.get_from_pki(pki)
-                    parent_crl.urls = ','.join(url_list)
-                    parent_crl.save()
-                    message = f'Список отзыва сертификата "ID:{parent_crt.subject_identifier}" успешно загружен'
+                    parent_crt, _ = self.model.objects.get_from_pki(pki)
+                    message = f'Сертификат "ID:{parent_crt.subject_identifier}" успешно загружен'
                     logger.info(message)
                     messages.success(request, message)
 
-            except PKIError as e:
-                messages.error(request, e)
+                    # попытка загрузить список отзыва при успешной загрузке сертификата
+                    if object.cdp_info and parent_crt:
+                        url_list = [cdp[0] for cdp in object.cdp_info.values()]
+                        up_file = get_from_url_list(url_list, proxy=proxy)
+                        pki.read_x509(up_file)
+                        parent_crl, _ = models.Crl.objects.get_from_pki(pki)
+                        parent_crl.urls = ','.join(url_list)
+                        parent_crl.save()
+                        message = f'Список отзыва сертификата "ID:{parent_crt.subject_identifier}" успешно загружен'
+                        logger.info(message)
+                        messages.success(request, message)
+
+                except PKIError as e:
+                    messages.error(request, e)
 
         return super().get(request, *args)
 
