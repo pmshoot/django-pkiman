@@ -116,30 +116,6 @@ class CrtAdmin(PKIModelAdminMixin, admin.ModelAdmin):
     def has_change_permission(self, request, obj=None):
         return False
 
-    # def delete_model(self, request, obj):
-    #     return super().delete_model(request, obj)
-    #
-    # def delete_queryset(self, request, queryset):
-    #     for obj in queryset:
-    #         try:
-    #             obj.delete()
-    #             obj.update_from_db()
-    #         except FileExistsError as e:
-    #             self.message_user(request, e, level=messages.WARNING)
-
-    # def delete_queryset(self, request, queryset):
-    #     files = [obj.file.path for obj in queryset if obj.file_exists()]
-    #     try:
-    #         super().delete_queryset(request, queryset)
-    #     except Exception as e:
-    #         raise
-    #     else:
-    #         for fp in files:
-    #             try:
-    #                 os.unlink(fp)
-    #             except Exception as e:
-    #                 pass
-
 
 class CrlAdmin(PKIModelAdminMixin, admin.ModelAdmin):
     """"""

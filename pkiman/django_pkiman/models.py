@@ -1,5 +1,4 @@
 import datetime
-import os
 
 from django.contrib import admin
 from django.core.exceptions import MultipleObjectsReturned
@@ -254,11 +253,8 @@ class Crt(FileExistsMixin, MP_Node):
 def delete_crt_object(sender, instance: Crt, **kwargs):
     """Удаляет файл на диске после удаления объекта"""
     if hasattr(instance, 'file'):
-        # fpath = instance.file.path
-        # if os.path.exists(fpath):
         try:
-            # os.unlink(fpath)
-            instance.file.delete()
+            instance.file.delete(False)
         except Exception:
             pass
 
@@ -406,10 +402,12 @@ class Crl(FileExistsMixin, models.Model):
 @receiver(post_delete, sender=Crl, weak=False)
 def delete_crl_object(sender, instance: Crl, **kwargs):
     """Удаление файла на диске после удаления объекта"""
-    fpath = instance.file.file.name
-    if os.path.exists(fpath):
+    if hasattr(instance, 'file'):
+        # fpath = instance.file.path
+        # if os.path.exists(fpath):
         try:
-            os.unlink(fpath)
+            # os.unlink(fpath)
+            instance.file.delete(False)
         except Exception:
             pass
 
