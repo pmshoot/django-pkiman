@@ -17,7 +17,8 @@
     <tbody>
     {% for item in object_list %}
       <tr>
-        <td class="uk-padding-remove-vertical"><a href="#" class="uk-icon-link"><span uk-icon="icon: info"></span></a></td>
+        <td class="uk-padding-remove-vertical" title="{{ item.subject_as_text }}">
+          <a href="#" class="uk-icon-link"><span uk-icon="icon: info"></span></a></td>
         <td class="uk-padding-remove-vertical">{{ item|cert_pad_span }}
         </td>
         {# Subject #}

@@ -27,9 +27,12 @@ def cert_pad_span(item):
     icon = 'crt.png' if (item.is_valid() and item.is_bound()) else 'miss.png'
     icon_url = static(f'img/{icon}')
     mark_root = 'color: brown;' if item.is_root_ca else ''
+    # tag = f'''<div style="padding-left: {padding_left}ex">
+    #       <span style="font-weight:bold;{mark_root}"><img src="{icon_url}">{item}</span>
+    #       <div><small>{item.subject_as_text()}</small></div>
+    #       </div>'''
     tag = f'''<div style="padding-left: {padding_left}ex">
           <span style="font-weight:bold;{mark_root}"><img src="{icon_url}">{item}</span>
-          <div><small>{item.subject_as_text()}</small></div>
           </div>'''
     return mark_safe(tag)
 
