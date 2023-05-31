@@ -9,14 +9,23 @@ from django_pkiman.utils import mime_content_type_extensions
 
 class ManagementURLUploadsForm(forms.Form):
     file = forms.URLField(
-            widget=forms.URLInput(attrs={
-                'aria-label': 'Custom controls',
-                'class': 'uk-input uk-width-auto',
-                'placeholder': 'URL'
+        widget=forms.URLInput(attrs={
+            'aria-label': 'Custom controls',
+            'class': 'uk-input',
+            'placeholder': 'URL'
             }),
-            required=False,
-            help_text='Загрузка данных из URL',
-    )
+        required=False,
+        help_text='Загрузка данных из URL',
+        )
+    proxy = forms.ChoiceField(
+        widget=forms.Select(attrs={
+            'class': 'uk-select uk-width-1-2 uk-form-small',
+            'aria-label': 'Select',
+            }),
+        required=False,
+        choices=(),
+        help_text='выберите прокси сервер из списка при необходимости'
+        )
 
     def clean_file(self):
         file = self.cleaned_data['file']
@@ -30,13 +39,12 @@ class ManagementURLUploadsForm(forms.Form):
 
 class ManagementLocalUploadsForm(forms.Form):
     file = forms.FileField(
-            widget=forms.FileInput(attrs={
-                'aria-label': 'Custom controls',
-                # 'class': 'uk-input uk-width-auto',
+        widget=forms.FileInput(attrs={
+            'aria-label': 'Custom controls',
             }),
-            required=False,
-            help_text='Загрузка данных из локального файла',
-    )
+        required=False,
+        help_text='Загрузка данных из локального файла',
+        )
 
     def clean_file(self):
         file = self.cleaned_data['file']
@@ -62,7 +70,7 @@ class CrlModelForm(forms.ModelForm):
         fields = '__all__'
         widgets = {
             'urls': forms.Textarea(attrs={'rows': 5, 'cols': 100}),
-        }
+            }
 
     def clean(self):
         is_active = self.cleaned_data['active']
@@ -99,7 +107,7 @@ class ProxyModelForm(forms.ModelForm):
         widgets = {
             'proxy_user': TextInput(attrs={'autocomplete': 'off'}),
             'proxy_pass': PasswordInput(attrs={'autocomplete': 'off'}),
-        }
+            }
 
     def clean(self):
         proxy_user = self.cleaned_data.get('proxy_user')

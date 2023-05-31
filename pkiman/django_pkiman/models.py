@@ -492,6 +492,17 @@ class ProxyManager(models.Manager):
         except Exception:
             pass
 
+    def get_active(self):
+        return self.filter(is_active=True)
+
+    def get_form_choices(self):
+        yield '', '-----'
+        if self.get_active().exists():
+            for proxy in self.get_active():
+                yield proxy.pk, proxy.name
+        else:
+            raise StopIteration
+
 
 class Proxy(models.Model):
     name = models.CharField('наименование',
@@ -512,6 +523,11 @@ class Proxy(models.Model):
                                      help_text='при выборе данный прокси сервер будет использоваться по-умолчанию при загрузке файлов',
                                      default=False,
                                      db_index=True)
+    is_active = models.BooleanField('действующий прокси',
+                                    default=True,
+                                    help_text='при отключенной опции данный прокси сервер не будет отображаться в '
+                                              'списке доступных серверов'
+                                    )
 
     objects = ProxyManager()
 

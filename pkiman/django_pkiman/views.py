@@ -69,9 +69,15 @@ class ManagementUploadsView(LoginRequiredMixin, ManagementModeMixin, TemplateVie
     url_form = forms.ManagementURLUploadsForm
     template_name = 'django-pkiman/mgmt/upload.html'
 
+    def get_url_form(self, form=None):
+        if not form:
+            form = self.url_form()
+        form.fields['proxy'].choices = Proxy.objects.get_form_choices()
+        return form
+
     def get_context_data(self, file_form=None, url_form=None, **kwargs):
         kwargs['file_form'] = file_form or self.file_form
-        kwargs['url_form'] = url_form or self.url_form
+        kwargs['url_form'] = self.get_url_form(url_form)
         kwargs['csrf_token'] = csrf.get_token(self.request)
         return super().get_context_data(**kwargs)
 
@@ -89,12 +95,18 @@ class ManagementUploadsView(LoginRequiredMixin, ManagementModeMixin, TemplateVie
 
         elif action == 'url_uploads':
             form = self.url_form(request.POST, request.FILES)
+            form = self.get_url_form(form)
             if form.is_valid():
                 file_url = form.cleaned_data['file']
+                proxy_id = form.cleaned_data.get('proxy') or None
+                if proxy_id:
+                    proxy = models.Proxy.objects.get(pk=proxy_id)
+                    proxy_url = proxy.get_url()
+                else:
+                    proxy_url = None
+
                 try:
-                    proxy = models.Proxy.objects.get_default_proxy_url()  # todo как вариант - меню выбора прокси сервера
-                    # на странице загрузки
-                    up_file, _ = get_from_url(file_url, proxy=proxy)
+                    up_file, _ = get_from_url(file_url, proxy=proxy_url)
                 except PKIUrlError as e:
                     messages.error(request, e)
                     context = self.get_context_data(url_form=form)
