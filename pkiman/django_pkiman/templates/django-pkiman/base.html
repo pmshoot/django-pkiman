@@ -35,9 +35,6 @@
                   <span><a href="{% url 'logout' %}" class="uk-button uk-button-link"
                            uk-icon="icon: sign-out"></a></span>
                 </li>
-                {#                <li class="uk-padding-remove">#}
-                {#                  <a href="{% url 'logout' %}" class="uk-button uk-button-link" uk-icon="icon: sign-out"></a>#}
-                {#                </li>#}
               {% else %}
                 <li>
                   <a class="uk-button uk-button-link" href="{% url 'login' %}" title="вход" uk-icon="icon: sign-in"></a>
@@ -66,7 +63,7 @@
     <div class="uk-container-expand">
       <div class="uk-grid uk-padding-small">
         {# Left block #}
-        <div class="uk-width-4-5">
+        <div class="uk-width-5-6">
           {% block left_block %}
             <article class="uk-article">
               {% lorem 10 p %}
@@ -74,7 +71,7 @@
           {% endblock %}
         </div>
         {# Right block #}
-        <div class="uk-width-1-5">
+        <div class="uk-width-1-6">
           {% block right_block %}
             <h2>Table of Contents</h2>
             <div>

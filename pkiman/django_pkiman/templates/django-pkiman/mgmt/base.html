@@ -1,9 +1,9 @@
-{% extends 'django-pkiman/base.html' %}
+{% extends 'django-pkiman/base.html' %}{% load pkimantags %}
 {% block admin_navbar %}
   <div class="uk-background-muted uk-text-bolder">
     <ul class="uk-subnav uk-subnav-divider uk-margin-remove-vertical uk-margin-left">
       {% block mgmt-subnav-reestr %}
-        <li><a href="{% url 'pkiman:reestr' %}">Реестр</a></li>{% endblock %}
+        <li><a href="{% url 'pkiman:reestr' %}">{{ 'all'|pki_critical_period_tag }} Реестр</a></li>{% endblock %}
       {% block mgmt-subnav-upload %}
         <li><a href="{% url 'pkiman:uploads' %}">Загрузка</a></li>{% endblock %}
       {% block mgmt-subnav-schedule %}

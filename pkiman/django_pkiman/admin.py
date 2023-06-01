@@ -45,8 +45,8 @@ class PKIModelAdminMixin:
 
 class CrtAdmin(PKIModelAdminMixin, admin.ModelAdmin):
     """"""
-    ordering = ('issuer',)
-    list_display = ('cn',
+    ordering = ('path',)
+    list_display = ('title',
                     'subject_identifier',
                     'serial',
                     'valid_after',
@@ -89,6 +89,12 @@ class CrtAdmin(PKIModelAdminMixin, admin.ModelAdmin):
                        )
             }),
         ]
+
+    @admin.display(description='Наименование')
+    def title(self, obj):
+        if obj.is_root_ca:
+            return obj.cn + ' (root)'
+        return obj.cn
 
     @admin.display(description='DN')
     def subject_dn_as_text_nl(self, obj):

@@ -10,9 +10,12 @@
 {% block right_block %}
   {% if url_path %}
     <div class="uk-padding-small">
-      <ul class="uk-nav uk-nav-default" uk-margin>
-        <li{% if pki_type == 'crt' %} class="uk-active"{% endif %}><a href="{{ url_path }}?pki=crt">Сертификаты</a></li>
-        <li{% if pki_type == 'crl' %} class="uk-active"{% endif %}><a href="{{ url_path }}?pki=crl">Списки отзыва</a>
+      <ul class="uk-tab-right" uk-tab>
+        <li{% if pki_type == 'crt' %} class="uk-active"{% endif %} onclick=window.location="{{ url_path }}?pki=crt">
+          <a>Сертификаты</a>
+        </li>
+        <li{% if pki_type == 'crl' %} class="uk-active"{% endif %} onclick=window.location="{{ url_path }}?pki=crl">
+          <a>Списки отзыва</a>
         </li>
       </ul>
     </div>

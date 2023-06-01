@@ -3,10 +3,12 @@ import datetime
 from django.contrib import admin
 from django.core.exceptions import MultipleObjectsReturned
 from django.db import models, transaction
+from django.db.models import Q
 from django.db.models.indexes import Index
 from django.db.models.signals import post_delete, pre_save
 from django.dispatch import receiver
 from django.utils import timezone
+from django.conf import settings
 from treebeard.mp_tree import MP_Node, MP_NodeManager
 
 from django_pkiman.errors import PKICrtDoesNotFoundError, PKICrtMultipleFoundError, PKIDuplicateError, PKIOldError
@@ -14,7 +16,7 @@ from django_pkiman.utils import clean_file_name
 from django_pkiman.utils.pki_parser import PKIObject
 
 DEFAULT_JOURNAL_LAST_RECORDS = 50
-
+DEFAULT_PKIMAN_MAX_OLD_PKI_TIME = getattr(settings, 'PKIMAN_MAX_OLD_PKI_TIME', 12)
 
 # todo - путь cdp вынести в настройки для возможности смены
 def get_upload_file_path(instance, *args):
@@ -101,6 +103,13 @@ class CrtManager(MP_NodeManager):
 
     def get_leaf_qs(self):
         return self.filter(is_root_ca=False, is_ca=False)
+
+    def get_reestr(self):
+        return self.get_queryset()
+
+    def get_critical_count(self):
+        max_datetime = timezone.now() + datetime.timedelta(hours=DEFAULT_PKIMAN_MAX_OLD_PKI_TIME)
+        return self.filter(Q(valid_before__lte=max_datetime) | Q(revoked_date__isnull=False)).count()
 
 
 class FileExistsMixin:
@@ -255,6 +264,11 @@ class Crt(FileExistsMixin, MP_Node):
                 cdp_list = [cdp_list]
             return cdp_list
 
+    def come_to_end(self):
+        max_hours_to_end = DEFAULT_PKIMAN_MAX_OLD_PKI_TIME
+        remains = self.valid_before - timezone.now()
+        return remains < datetime.timedelta(hours=max_hours_to_end)
+
     # todo - add func для проверки наличия файла на диске
 
 
@@ -328,6 +342,13 @@ class CrlManager(models.Manager):
     def get_ca_qs(self):
         return self.filter(issuer__is_root_ca=False, issuer__is_ca=True)
 
+    def get_reestr(self):
+        return self.get_queryset().order_by('issuer__path')
+
+    def get_critical_count(self):
+        max_datetime = timezone.now() + datetime.timedelta(hours=DEFAULT_PKIMAN_MAX_OLD_PKI_TIME)
+        return self.filter(next_update__lte=max_datetime).count()
+
 
 class Crl(FileExistsMixin, models.Model):
     """Списки отзыва"""
@@ -362,7 +383,7 @@ class Crl(FileExistsMixin, models.Model):
         )
     no_proxy = models.BooleanField('не использовать прокси', default=False)
     created_at = models.DateTimeField(auto_now_add=True, editable=False)
-    edited_at = models.DateTimeField(auto_now=True, editable=False)
+    updated_at = models.DateTimeField(auto_now=True, editable=False)
     # last remote file data
     f_date = models.DateTimeField('дата файла', null=True)
     f_size = models.PositiveSmallIntegerField('размер файла', null=True)
@@ -395,6 +416,11 @@ class Crl(FileExistsMixin, models.Model):
         name = self.issuer.upload_file_name()
         ftype = 'crl'
         return f'{ftype}/{name}.{ftype}'
+
+    def come_to_end(self):
+        max_hours_to_end = DEFAULT_PKIMAN_MAX_OLD_PKI_TIME
+        remains = self.next_update - timezone.now()
+        return remains < datetime.timedelta(hours=max_hours_to_end)
 
     @property
     def user_pki_store(self):

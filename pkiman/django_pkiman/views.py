@@ -35,9 +35,11 @@ class IndexView(ListView):
     def get_queryset(self):
         """"""
         if self.pki_type == 'crt':
-            return models.Crt.objects.all()
+            model = models.Crt
         elif self.pki_type == 'crl':
-            return models.Crl.objects.all()
+            model = models.Crl
+        return model.objects.get_reestr()
+
 
 
 class ManagementModeMixin:

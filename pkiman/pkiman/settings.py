@@ -135,6 +135,8 @@ FIRST_DAY_OF_WEEK = 1
 # --- PKIMAN ---
 # Период хранения записей журнала в БД (дни)
 # PKIMAN_JOURNAL_STORE_PERIOD = 365
+# Крайнее дата/время срока действия PKI
+# PKIMAN_MAX_OLD_PKI_TIME = 12  # hours
 
 # Периодический запуск функции обновления CRL
 # MIN HOURS DAY MONTH WEEKDAY

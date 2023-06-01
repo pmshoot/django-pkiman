@@ -1,4 +1,4 @@
-{% extends 'django-pkiman/mgmt/base.html' %}
+{% extends 'django-pkiman/mgmt/base.html' %}{% load pkimantags %}
 {% block mgmt-subnav-journal %}
   <li class="uk-active"><a href="{% url 'pkiman:journal' %}">Журнал</a></li>{% endblock %}
 {% block mgmt %}
@@ -6,9 +6,9 @@
     <tbody>
     {% for rec in object_list %}
       <tr>
-        <td class="uk-padding-remove-vertical">{{ rec.created_at }}</td>
-        <td class="uk-padding-remove-vertical">{{ rec.get_level_display }}</td>
-        <td class="uk-padding-remove-vertical">{{ rec.message }}</td>
+        <td class="uk-padding-remove-vertical uk-table-shrink uk-text-nowrap" style="font-family: monospace;"><small>{{ rec.created_at }}</small></td>
+        <td class="uk-padding-remove-vertical uk-table-shrink" style="font-family: monospace;color: {{ rec.level|level_tag }}">{{ rec.level }}</td>
+        <td class="uk-padding-remove-vertical uk-table-expand">{{ rec.message }}</td>
       </tr>
     {% endfor %}
     </tbody>
