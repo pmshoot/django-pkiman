@@ -1,9 +1,10 @@
 # Доступ к файлам сертификатов и СОС по http протоколу
-        location /pki/store/ {
-                try_files $uri $uri/ =404;
-                alias /var/www/django-pkiman/pkiman/store;
-                autoindex on;
-                autoindex_localtime on;
-                access_log /var/log/nginx/pki_access.log;
-                error_log /var/log/nginx/pki_error.log;
-                gzip on;
+location /pki/store/ {
+    try_files $uri $uri/ =404;
+    alias /var/www/django-pkiman/pkiman/store;
+    autoindex on;
+    autoindex_localtime on;
+    access_log /var/log/nginx/pki_access.log;
+    error_log /var/log/nginx/pki_error.log;
+    gzip on;
+}
