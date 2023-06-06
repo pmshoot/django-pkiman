@@ -1,0 +1,58 @@
+# Доступ к файлам сертификатов и СОС по http протоколу
+server {
+        listen 0.0.0.0:80;
+        server_name _;
+        location /pki/store/ {
+                try_files $uri $uri/ =404;
+                alias /var/www/django-pkiman/pkiman/store;
+                autoindex on;
+                autoindex_localtime on;
+                access_log /var/log/nginx/pki_access.log;
+                error_log /var/log/nginx/pki_error.log;
+                gzip on;
+        }
+}
+
+server {
+        listen 10.66.0.213:443 ssl default_server;
+        server_name _;
+        include snippets/webssl.conf;
+        add_header Strict-Transport-Security max-age=2592000;
+
+        root /var/www/django-pkiman/pkiman;
+
+        access_log /var/log/nginx/pkiman_access.log;
+        error_log /var/log/nginx/pkiman_error.log;
+
+        index index.html;
+
+        location /static/django-pkiman/img/favicon.ico {
+                access_log off;
+                log_not_found off;
+                add_header Cache_Control "public";
+                expires 7d;
+        }
+
+        location /static/ {
+                root /var/www/django-pkiman/pkiman/django-pkiman;
+                access_log off;
+        }
+
+        location ^/static/img/.*\.png {
+                add_header Cache_Control "public";
+                expires 3d;
+        }
+
+        location /pki/ {
+                client_max_body_size 20M;
+                include proxy_params;
+                # path to gunicorn sock
+                proxy_pass http://unix:/tmp/pkiman.sock;
+        }
+
+        # переадресация на новое место расположения crl
+        #location /crl/ {
+        #        return 302 http://$host/pki/ca$request_uri;
+        #}
+
+}

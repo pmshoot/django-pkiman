@@ -1,0 +1,29 @@
+location /static/django-pkiman/img/favicon.ico {
+    root /var/www/django-pkiman/pkiman;
+    access_log off;
+    log_not_found off;
+    add_header Cache_Control "public";
+    expires 7d;
+    }
+
+location /static/ {
+    root /var/www/django-pkiman/pkiman/django-pkiman;
+    access_log off;
+}
+
+location ^/static/img/.*\.png {
+    root /var/www/django-pkiman/pkiman;
+    add_header Cache_Control "public";
+    expires 3d;
+    access_log off;
+}
+
+location /pki/ {
+    root /var/www/django-pkiman/pkiman;
+    access_log /var/log/nginx/pkiman_app_access.log;
+    error_log /var/log/nginx/pkiman_app_error.log;
+    client_max_body_size 20M;
+    include proxy_params;
+    # path to gunicorn sock
+    proxy_pass http://unix:/tmp/pkiman.sock;
+}

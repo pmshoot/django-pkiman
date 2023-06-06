@@ -1,0 +1,12 @@
+[Unit]
+Description=PKI Manager app gunicorn daemon
+After=network.target
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/pkiman
+ExecStart=/var/www/pkiman/venv/bin/python3 -m gunicorn --bind unix:/tmp/gfp.sock --log-syslog --disable-redirect-access-to-syslog --name fp --workers 17 core.wsgi:application
+
+[Install]
+WantedBy=multi-user.target
