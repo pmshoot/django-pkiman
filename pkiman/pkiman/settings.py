@@ -141,6 +141,7 @@ FIRST_DAY_OF_WEEK = 1
 # PKIMAN_MAX_OLD_PKI_TIME = 12  # hours
 # Количество PKI на странице (paging)
 # PKIMAN_PAGINATE_BY = 20
+# PKIMAN_STORE_NGINX_USE_HTTPS = False
 
 # Периодический запуск функции обновления CRL
 # MIN HOURS DAY MONTH WEEKDAY

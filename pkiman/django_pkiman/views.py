@@ -1,5 +1,6 @@
 import urllib.parse
 from datetime import datetime
+from functools import lru_cache
 from pathlib import Path
 
 from django.conf import settings
@@ -274,6 +275,7 @@ class ManagementScheduleView(MgmtAccessMixin, MgmtModeMixin, ListView):
 
 class ManagementUrlIndexView(MgmtAccessMixin, MgmtModeMixin, TemplateView):
     """"""
+    store_nginx_use_https = getattr(settings, 'PKIMAN_STORE_NGINX_USE_HTTPS', False)
     template_name = 'django-pkiman/mgmt/index_file.html'
     index_file_name = 'index.txt'
 
@@ -285,9 +287,16 @@ class ManagementUrlIndexView(MgmtAccessMixin, MgmtModeMixin, TemplateView):
             self.index_file_name
             )
 
+    @lru_cache
+    def get_store_scheme(self):
+        return 'https' if self.store_nginx_use_https else 'http'
+
     def get_store_path(self, request):
         absolute_uri = request.build_absolute_uri()
         server_path = absolute_uri.split(request.path_info.strip('/'))[0]
+        _, addr = server_path.split('://')
+        scheme = self.get_store_scheme()
+        server_path = f'{scheme}://{addr}'
         store_url = urllib.parse.urljoin(server_path, settings.MEDIA_URL)
         return store_url
 
