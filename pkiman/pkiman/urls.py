@@ -1,32 +1,20 @@
-"""
-URL configuration for pkiman project.
-
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/4.2/topics/http/urls/
-Examples:
-Function views
-    1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  path('', views.home, name='home')
-Class-based views
-    1. Add an import:  from other_app.views import Home
-    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
-Including another URLconf
-    1. Import the include() function: from django.urls import include, path
-    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
-"""
-from django.conf import settings
-from django.conf.urls.static import static
-from django.contrib import admin
 from django.urls import include, path
 
-from django_pkiman.admin import pki_admin
+from pkiman import views
 
-urlpatterns = [
-    path('pki/', include('django_pkiman.urls')),
-    path('accounts/', include('django.contrib.auth.urls')),
-    path('pkiadmin/', pki_admin.urls),
+app_name = 'pkiman'
+
+mgmt_urls = [
+    path('crl/<str:pk>/update/', views.ManagementUpdateCrl.as_view(), name='update_crl'),
+    path('crt/<str:pk>/parent/get/', views.ManagementGetParentCrt.as_view(), name='get_parent_crt'),
+    path('uploads/', views.ManagementUploadsView.as_view(), name='uploads'),
+    path('indexing/', views.ManagementUrlIndexView.as_view(), name='url_index_file'),
+    path('schedule/', views.ManagementScheduleView.as_view(), name='schedule'),
+    path('journal/', views.ManagementJournalView.as_view(), name='journal'),
     ]
 
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT
-                          )
+urlpatterns = [
+    path('', views.IndexView.as_view(), name='index'),
+    path('mgmt/', include(mgmt_urls)),
+    path('docs/', views.DocsView.as_view(), name='docs'),
+]

@@ -1,0 +1,33 @@
+{% extends 'pkiman/base.html' %}{% load pkimantags %}
+{% block mgmt-subnav-schedule %}
+  <li class="uk-active"><a href="">Планировщик</a></li>
+{% endblock %}
+
+{% block left_block %}
+  <table class="uk-table uk-table-hover uk-text-small uk-table-divider">
+    <thead>
+    <tr class="uk-text-bold">
+      <th>Наименование</th>
+      <th>Начало периода</th>
+      <th>Конец периода</th>
+      <th>Активен</th>
+      <th></th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for object in object_list %}
+      <tr>
+        <td>{{ object.name }}</td>
+        <td>{{ object.std }}</td>
+        <td>{{ object.etd }}</td>
+        <td>{{ object.is_active|boolicon }}</td>
+        <td><small><a
+            href="{% url 'pkiadmin:pkiman_crlupdateschedule_change' object.pk %}?next={% url 'pkiman:schedule' %}">Настроить</a></small>
+        </td>
+      </tr>
+    {% endfor %}
+
+    </tbody>
+  </table>
+{% endblock %}
+{% block right_block %}{% endblock %}

@@ -1,0 +1,163 @@
+{% extends 'pkiman/base.html' %}
+{% block mgmt-subnav-upload %}
+  <li class="uk-active"><a href="">Загрузка</a></li>
+{% endblock %}
+
+{% block left_block %}
+  {# TODO - Заменить форму загрузки файла на JS#}
+  {#  <div class="js-upload uk-placeholder uk-text-center">#}
+  {#    <span uk-icon="icon: cloud-upload"></span>#}
+  {#    <span class="uk-text-middle">Выберите файл для загрузки или перетащите его на эту область</span>#}
+  {#    <div uk-form-custom>#}
+  {#      <input type="file" multiple>#}
+  {#      <input type="file">#}
+  {#      <span class="uk-link">Выбрать файл</span>#}
+  {#    </div>#}
+  {#  </div>#}
+  {##}
+  {#  <progress id="js-progressbar" class="uk-progress" value="0" max="100" hidden></progress>#}
+  {##}
+  {#  <script>#}
+  {##}
+  {#      var bar = document.getElementById('js-progressbar');#}
+  {##}
+  {#      UIkit.upload('.js-upload', {#}
+  {##}
+  {#          url: '{% url 'pkiman:uploads' %}',#}
+  {#multiple: true,#}
+  {#          multiple: false,#}
+  {#allow: '*.crl;*.cer;*.crt;*.pem',#}
+  {##}
+  {##}
+  {##}
+  {#          beforeSend: function (e) {#}
+  {#              console.log('beforeSend', arguments);#}
+  {#environment.xhr.setRequestHeader('X-CSRF-Token', '{{ csrf_token }}');#}
+  {#environment.headers.append('X-CSRF-Token','{{csrf_token}}');#}
+  {#e.xhr.setRequestHeader('X-CSRF-Token', '{{ csrf_token }}');#}
+  {#var xhr = e.headers;#}
+  {#              e.headers['X-CSRFToken'] = '{{ csrf_token }}';#}
+  {#              e.data['action'] = JSON.stringify({'action': 'file_upload'});#}
+  {#          },#}
+  {#          beforeAll: function () {#}
+  {#              console.log('beforeAll', arguments);#}
+  {#          },#}
+  {#          load: function () {#}
+  {#              console.log('load', arguments);#}
+  {#          },#}
+  {#          error: function () {#}
+  {#              console.log('error', arguments);#}
+  {#          },#}
+  {#          complete: function () {#}
+  {#              console.log('complete', arguments);#}
+  {#          },#}
+  {##}
+  {#          loadStart: function (e) {#}
+  {#              console.log('loadStart', arguments);#}
+  {##}
+  {#              bar.removeAttribute('hidden');#}
+  {#              bar.max = e.total;#}
+  {#              bar.value = e.loaded;#}
+  {#          },#}
+  {##}
+  {#          progress: function (e) {#}
+  {#              console.log('progress', arguments);#}
+  {##}
+  {#              bar.max = e.total;#}
+  {#              bar.value = e.loaded;#}
+  {#          },#}
+  {##}
+  {#          loadEnd: function (e) {#}
+  {#              console.log('loadEnd', arguments);#}
+  {##}
+  {#              bar.max = e.total;#}
+  {#              bar.value = e.loaded;#}
+  {#          },#}
+  {##}
+  {#          completeAll: function (e) {#}
+  {#              console.log('completeAll', arguments);#}
+  {##}
+  {#              setTimeout(function () {#}
+  {#                  bar.setAttribute('hidden', 'hidden');#}
+  {#              }, 1000);#}
+  {#window.location.reload(true);#}
+  {#              alert(e.response);#}
+  {#          }#}
+  {##}
+  {#      });#}
+  {##}
+  {#  </script>#}
+
+
+
+
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <fieldset class="uk-fieldset">
+      <legend class="uk-legend">Загрузка файлов</legend>
+      {#       Fileform#}
+      <div class="uk-margin" uk-margin>
+        <div class="uk-width-1-2" uk-form-custom="target: true">
+          {{ file_form.file }}
+          <input class="uk-input" type="text" placeholder="Выберите файл"
+                 aria-label="Custom controls"
+                 disabled>
+        </div>
+        <button class="uk-button uk-button-primary uk-padding-remove" name="action" value="file_uploads"><span
+            uk-icon="icon: upload"></span></button>
+      </div>
+      {% if file_form.file.errors %}
+        <div class="uk-list">
+          <ul>
+            {% for error in file_form.file.errors %}
+              <li class="uk-text-danger">{{ error }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endif %}
+      <hr>
+
+      {# URLForm #}
+      <div class="uk-margin" uk-margin>
+        <div class="uk-width-1-2" uk-form-custom="target: true">
+          {{ url_form.file }}
+        </div>
+        <button class="uk-button uk-button-primary uk-padding-remove" name="action" value="url_uploads"><span
+            uk-icon="icon: upload"></span>
+        </button>
+        {% if url_form.file.errors %}
+          <div class="uk-list">
+            <ul>
+              {% for error in url_form.file.errors %}
+                <li class="uk-text-danger">{{ error }}</li>
+              {% endfor %}
+            </ul>
+          </div>
+        {% endif %}
+        <div>
+          {{ url_form.proxy }}
+        </div>
+          <small>{{ url_form.proxy.help_text }}</small>
+      {% if url_form.proxy.errors %}
+          <div class="uk-list">
+            <ul>
+              {% for error in url_form.proxy.errors %}
+                <li class="uk-text-danger">{{ error }}</li>
+              {% endfor %}
+            </ul>
+          </div>
+        {% endif %}
+      </div>
+      {% if url_form.non_field_errors %}
+        <div class="uk-list">
+          <ul>
+            {% for error in url_form.non_field_errors %}
+              <li class="uk-text-danger">{{ error }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endif %}
+    </fieldset>
+  </form>
+{% endblock %}
+{% block right_block %}{% endblock %}

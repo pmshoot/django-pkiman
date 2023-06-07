@@ -1,0 +1,20 @@
+{% extends 'pkiman/base.html' %}{% load pkimantags %}
+{% block mgmt-subnav-index %}
+  <li class="uk-active"><a href="">Индекс</a></li>
+{% endblock %}
+{% block left_block %}
+  <form action="" method="post">
+    {% csrf_token %}
+    <button type="submit" name="generate_file">Генерировать индекс-файл</button>
+  </form>
+  {% if index_file %}
+    {{ index_file.fname }} {{ index_file.fdate }}  {{ index_file.fsize }}
+    <label for="index_list">Данные индекс-файла</label>
+    <textarea id="index_list" rows="20" style="font-family: monospace; font-size: small" class="uk-textarea" readonly>{% for line in index_list %}{{ line }}{% endfor %}
+    </textarea>
+  {% else %}
+    No index file
+  {% endif %}
+
+{% endblock %}
+{% block right_block %}{% endblock %}

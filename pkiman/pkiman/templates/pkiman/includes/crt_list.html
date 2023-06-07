@@ -1,0 +1,94 @@
+{% if object_list.exists %}{% load static humanize pkimantags %}
+  <table class="uk-table uk-table-hover uk-text-small uk-table-divider">
+    <thead>
+    <tr class="uk-background-muted">
+      <th class="uk-table-shrink">инфо</th>
+      <th class="uk-table-expand">Данные сертификата</th>
+      <th class="uk-table-expand">Тэги</th>
+      <th class="uk-table-shrink" style="width: 1em;" title="Скачать файл сертификата">CRT</th>
+      <th class="uk-table-shrink" style="width: 1em;" title="Скачать файл списка отзыва">CRL</th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for item in object_list %}
+      {% with item_come_to_end=item.come_to_end item_is_valid=item.is_valid %}
+        <tr{% if item_come_to_end or not item_is_valid %} style="background-color: rgba(255,228,181,0.52)"{% endif %}>
+          <td class="uk-padding-remove-top" title="{{ item.subject_as_text }}">
+            <a href="#" class="uk-icon-link"><span uk-icon="icon: info"></span></a>
+          </td>
+          {# Certificate data  #}
+          <td class="uk-padding-remove-top">
+            {% with item|cert_padding_left as padding_left %}
+              <div class="uk-grid-small uk-child-width-1-2" uk-grid>
+                <div class="uk-inline" style="padding-left: {{ padding_left }}ex">
+                  <a style="{{ item|mark_root }}" uk-toggle="target: #id_{{ item.pk }};">
+                    <img src="{{ item|cert_icon_url }}">{{ item }}
+                  </a>
+                  {% if not item.is_bound and item.auth_info %}
+                    <small><a class="uk-badge" href="{% url 'pkiman:get_parent_crt' item.pk %}?pki={{ pki_type }}">Загрузить
+                      родительский сертификат</a></small>
+                  {% endif %}
+                  {% if mgmt %} {# Settings link #}
+                    <div class="uk-position-right">
+                      <a href="{% url 'pkiadmin:pkiman_crt_change' item.pk %}?next={% url 'pkiman:index' %}?pki={{ pki_type }}"
+                         uk-icon="icon: cog; ratio: .7"></a></div>
+                  {% endif %}
+                </div>
+                <div>
+                  <div style="color: crimson; font-family: monospace">ID:{{ item.subject_identifier|upper }}</div>
+
+                </div>
+              </div>
+              <div id="id_{{ item.pk }}"{% if not item_come_to_end %} hidden{% endif %}>
+              <div style="margin-left: 1ex" class="uk-grid-small uk-child-width-1-2" uk-grid>
+                <div style="padding-left: {{ padding_left }}ex">
+                  {# Субъект #}
+                  <div style="font-family: monospace">FP:{{ item.fingerprint }}</div>
+                  <div style="font-family: monospace">SN:{{ item.serial }}</div>
+                  <small>{{ item.valid_after }} - <span{% if item.come_to_end %}
+                    class="uk-text-danger uk-text-bold"{% endif %}>{{ item.valid_before }}</span></small>
+                </div>
+                <div>
+                  <div>Издатель:</div>
+                  <div style="font-family: monospace">ID:{{ item.issuer_identifier|default_if_none:"-" }}</div>
+                  <div style="font-family: monospace">SN:{{ item.issuer_serial|default_if_none:"-" }}</div>
+                </div>
+
+              </div>
+            {% endwith %}
+          </td>
+          {# Теги #}
+          <td class="uk-padding-remove-top uk-text-small">
+            <div>
+              {% for tag in item.tags.all %}
+                <code><small><a class="uk-link-reset" href="{% url 'pkiman:index' %}?pki={{ pki_type }}&s=tag:{{ tag.slug }}">{{ tag }}</a></small></code>
+              {% endfor %}
+            </div>
+          </td>
+          <td class="uk-padding-remove-top uk-text-small"> {# Cert file #}
+            {% if item.file_exists %}
+              <a href="{{ item.get_absolute_url }}"><span uk-icon="icon: file-text"></span></a>
+            {% else %}
+              <span uk-icon="icon: warning" class="uk-text-danger" title="No file found"></span>
+            {% endif %}
+          </td>
+          {# Crl file #}
+          <td class="uk-padding-remove-top uk-text-small">
+            {% if item.crl %}
+              {% if item.file_exists %}
+                <div><a href="{{ item.crl.get_absolute_url }}"><span uk-icon="icon: file-text"></span></a></div>
+              {% else %}
+                <span uk-icon="icon: warning" class="uk-text-danger" title="No file found"></span>
+              {% endif %}
+            {% endif %}
+          </td>
+        </tr>
+      {% endwith %}
+    {% endfor %}
+    </tbody>
+  </table>
+  {% include 'pkiman/includes/paginator.html' %}
+{% else %}
+  <div>Сертификаты не найдены</div>
+{% endif %}
+
