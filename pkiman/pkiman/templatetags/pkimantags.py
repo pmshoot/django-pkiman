@@ -32,8 +32,13 @@ def cert_padding_left(item):
 
 
 @register.filter
-def mark_root(item):
-    return 'font-weight:bold;color: brown;' if item.is_root_ca else ''
+def mark_cert(item):
+    if item.is_root_ca:
+        return 'font-weight:bold;color: brown;'
+    elif item.is_final():
+        return 'color: green;'
+    else:
+        return ''
 
 
 @register.filter

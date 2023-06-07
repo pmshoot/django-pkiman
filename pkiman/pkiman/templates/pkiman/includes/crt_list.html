@@ -21,7 +21,7 @@
             {% with item|cert_padding_left as padding_left %}
               <div class="uk-grid-small uk-child-width-1-2" uk-grid>
                 <div class="uk-inline" style="padding-left: {{ padding_left }}ex">
-                  <a style="{{ item|mark_root }}" uk-toggle="target: #id_{{ item.pk }};">
+                  <a style="{{ item|mark_cert }}" uk-toggle="target: #id_{{ item.pk }};">
                     <img src="{{ item|cert_icon_url }}">{{ item }}
                   </a>
                   {% if not item.is_bound and item.auth_info %}
