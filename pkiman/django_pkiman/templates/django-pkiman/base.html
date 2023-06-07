@@ -31,8 +31,7 @@
                      uk-icon="icon: cog"></a>
                 </li>
                 <li class="uk-navbar-item uk-active">
-                  <a title="Настройки сайта"
-                     href="{% url 'admin:index' %}?next={% url 'pkiman:index' %}?pki={{ pki_type }}">{{ user|upper }}</a>
+                  {{ user|upper }}
                 </li>
                 <li class="uk-navbar-item uk-active uk-margin-small-right">
                   <a title="Выход" href="{% url 'logout' %}" class="uk-button" uk-icon="icon: sign-out"></a>

@@ -1,6 +1,7 @@
 from django.contrib import admin, messages
 from django.http import HttpResponseRedirect
 from django.urls import reverse_lazy
+from django.contrib.auth.models import Group, User
 
 from django_pkiman.forms import CrlModelForm, CrlUpdateScheduleModelForm, ProxyModelForm, CrtModelForm
 from django_pkiman.models import Crl, CrlUpdateSchedule, Crt, Proxy, PKITag
@@ -270,3 +271,7 @@ class TagAdmin(admin.ModelAdmin):
     """"""
     readonly_fields = ('slug',)
     list_display = ('name', 'desc')
+
+
+pki_admin.register(User)
+pki_admin.register(Group)
