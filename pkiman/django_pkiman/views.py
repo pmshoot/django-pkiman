@@ -195,6 +195,8 @@ class ManagementUploadsView(MgmtAccessMixin, MgmtModeMixin, TemplateView):
                 message = f'Ошибка добавления дубликата сертификата {pki}'
             else:
                 message = f'Ошибка загрузки сертификата: {e}'
+        except Exception as e:
+            message = e
         logger.error(message)
         messages.error(request, message)
         return self.render_to_response(self.get_context_data())

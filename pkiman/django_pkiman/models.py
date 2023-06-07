@@ -93,7 +93,8 @@ class CrtManager(MP_NodeManager):
                     # если есть в БД сертификат subject == issuer добавляемого сертификата - присвоить его как родителя
                     issuer: Crt = self.get(
                         subject_dn=pki.issuer,
-                        subject_identifier=pki.issuer_identifier)
+                        serial=pki.issuer_serial_number
+                        )
                     object: Crt = issuer.add_child(**pki_data)
                     object.issuer = issuer
                     object.save()
@@ -183,7 +184,6 @@ class Crt(PKIAddonsMixin, MP_Node):
         unique_together = ('issuer_dn', 'serial')  # RFC 5280 4.1.2.2
         permissions = [('pki_admin', 'Администратор PKI')]
         indexes = (
-            Index(name='crt_get_issuer_idx', fields=('subject_dn', 'subject_identifier')),
             Index(name='crt_filter_orphans_idx', fields=('issuer_dn',
                                                          'issuer_identifier',
                                                          'issuer',
@@ -192,9 +192,6 @@ class Crt(PKIAddonsMixin, MP_Node):
             Index(name='crt_get_by_type', fields=('is_root_ca',
                                                   'is_ca',
                                                   )),
-            Index(name='crl_get_issuer_crt', fields=('subject_dn',
-                                                     'subject_identifier',
-                                                     'serial')),
             )
 
     def __str__(self):

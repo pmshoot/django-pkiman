@@ -123,3 +123,4 @@ cython_debug/
 
 pkiman/store
 !/assets/nginx/include/
+/.idea/encodings.xml
