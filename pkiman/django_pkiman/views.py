@@ -9,6 +9,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMix
 from django.db import IntegrityError
 from django.db.models import Q
 from django.middleware import csrf
+from django.urls import reverse_lazy
 from django.views.generic import ListView, RedirectView, TemplateView
 from django.views.generic.detail import SingleObjectMixin
 from django.views.generic.edit import FormMixin
@@ -38,7 +39,7 @@ class IndexView(MgmtModeMixin, FormMixin, ListView):
     template_name = 'django-pkiman/index.html'
     paginate_by = getattr(settings, 'PKIMAN_PAGINATE_BY', 20)
     form_class = SearchForm
-    url = '/'
+    url = reverse_lazy('pkiman:index')
 
     def setup(self, request, *args, **kwargs):
         self.pki_type = request.GET.get('pki', 'crt')
