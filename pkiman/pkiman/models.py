@@ -91,14 +91,24 @@ class CrtManager(MP_NodeManager):
             else:
                 try:
                     # если есть в БД сертификат subject == issuer добавляемого сертификата - присвоить его как родителя
-                    issuer: Crt = self.get(
-                        subject_dn=pki.issuer,
-                        serial=pki.issuer_serial_number
-                        )
+                    if pki.issuer_serial_number:
+                        issuer: Crt = self.get(
+                            subject_dn=pki.issuer,
+                            serial=pki.issuer_serial_number
+                            )
+                    elif pki.issuer_identifier:
+                        issuer: Crt = self.get(
+                            subject_dn=pki.issuer,
+                            issuer_identifier=pki.issuer_identifier
+                            )
+                    else:
+                        issuer: Crt = self.get(
+                            subject_dn=pki.issuer,
+                            )
                     object: Crt = issuer.add_child(**pki_data)
                     object.issuer = issuer
                     object.save()
-                except self.model.DoesNotExist:
+                except (self.model.DoesNotExist, self.model.MultipleObjectsReturned):
                     # Иначе оставляем сертификат как сироту в корне
                     object = self.model.add_root(**pki_data)
 
@@ -109,6 +119,12 @@ class CrtManager(MP_NodeManager):
                     issuer_identifier=pki.subject_identifier,
                     issuer=None,
                     is_root_ca=False)
+                if not orphans.exists():  # в случае отсутствия у "битых" сертификатов ID издателя
+                    orphans = self.filter(
+                        issuer_dn=pki.subject,
+                        issuer=None,
+                        is_root_ca=False)
+
                 if orphans.exists():
                     for orphan in orphans.all():
                         orphan.move(object, pos='sorted-child')
