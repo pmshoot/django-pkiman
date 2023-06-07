@@ -118,12 +118,12 @@ LOGOUT_REDIRECT_URL = 'pkiman:index'
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
-STATIC_URL = 'assets/'
+STATIC_URL = 'pki/assets/'
 STATIC_ROOT = BASE_DIR / 'assets'
 STATICFILES_DIRS = (
     BASE_DIR / 'django_pkiman/static/django_pkiman',
     )
-MEDIA_URL = 'store/'
+MEDIA_URL = 'pki/store/'
 MEDIA_ROOT = BASE_DIR / 'store'
 
 DEFAULT_FILE_STORAGE = 'django_pkiman.utils.storage.FileSystemOverwriteStorage'
