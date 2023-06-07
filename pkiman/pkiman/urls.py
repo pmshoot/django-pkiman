@@ -22,7 +22,7 @@ from django.urls import include, path
 from django_pkiman.admin import pki_admin
 
 urlpatterns = [
-    path('', include('django_pkiman.urls')),
+    path('pki/', include('django_pkiman.urls')),
     path('accounts/', include('django.contrib.auth.urls')),
     path('pkiadmin/', pki_admin.urls),
     path('admin/', admin.site.urls),
