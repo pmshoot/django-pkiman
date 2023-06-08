@@ -122,5 +122,5 @@ cython_debug/
 /.idea/vcs.xml
 
 pkiman/store
-!/assets/nginx/include/
+!/additionals/nginx/include/
 /.idea/encodings.xml
