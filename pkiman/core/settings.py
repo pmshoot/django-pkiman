@@ -11,22 +11,49 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
 from pathlib import Path
+import environ
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
+# Environment settings #########################################################
+env = environ.Env(
+    # set casting, default value
+    DEBUG=(bool, False)
+    )
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-#_^0u#zyvsp86*s%t!gj1=echgv)7zz=(f-2@_)2j)h6f!y$7f'
+environ.Env.read_env(BASE_DIR / 'core' / '.env')
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = env('DEBUG')
 
-ALLOWED_HOSTS = ['127.0.0.1']
+SECRET_KEY = env('SECRET_KEY')
 
-# Application definition
+ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', cast=str)
+
+DATABASES = {
+    'default': env.db('DATABASE_URL',
+                      default=f"sqlite:////{str(BASE_DIR.joinpath('db.sqlite3').resolve())}"
+                      )
+    }
+
+STATIC_URL = env('STATIC_URL', default='assets/')
+MEDIA_URL = env('MEDIA_URL', default='store/')
+
+# --- PKIMAN ---
+PKIMAN_JOURNAL_STORE_PERIOD = env('PKIMAN_JOURNAL_STORE_PERIOD', cast=int, default=365)
+PKIMAN_MAX_OLD_PKI_TIME = env('PKIMAN_MAX_OLD_PKI_TIME', cast=int, default=12)
+PKIMAN_PAGINATE_BY = env('PKIMAN_PAGINATE_BY', cast=int, default=20)
+PKIMAN_STORE_NGINX_USE_HTTPS = env('PKIMAN_STORE_NGINX_USE_HTTPS', cast=bool, default=False)
+
+# Периодический запуск функции обновления CRL
+# MIN HOURS DAY MONTH WEEKDAY
+# CRONJOBS = [  # TODO! Убрать. Вызывать из системного крона 'management command pkiupdate' с параметрами
+    # ('*/15 12-18 * * *', 'pkiman.utils.download.update_handle'),
+    # ('1 0-23 * * *', 'pkiman.utils.download.update_handle'),
+    # ('0 0 1 * *', 'pkiman.utils.logger.journal_clean')  # TODO добавить management command для запуска очистки журнала
+    # ]
+
+# Constant settings ############################################################
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -36,7 +63,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django.contrib.humanize',
-    'django_crontab',
+    # 'django_crontab',
+    'environ',
     'taggit',
     'pkiman.apps.PkimanConfig',
     ]
@@ -70,16 +98,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'core.wsgi.application'
 
-# Database
-# https://docs.djangoproject.com/en/4.2/ref/settings/#databases
-
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-        }
-    }
-
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
 
@@ -111,40 +129,19 @@ USE_L10N = True
 USE_TZ = True
 
 LOGIN_REDIRECT_URL = 'pkiman:index'
+
 LOGOUT_REDIRECT_URL = 'pkiman:index'
 
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/4.2/howto/static-files/
-
-STATIC_URL = 'pki/assets/'
 STATIC_ROOT = BASE_DIR / 'assets'
+
 STATICFILES_DIRS = (
-    BASE_DIR / 'pkiman/static/pkiman',
+    BASE_DIR / 'pkiman' / 'static' / 'pkiman',
     )
-MEDIA_URL = 'pki/store/'
+
 MEDIA_ROOT = BASE_DIR / 'store'
 
 DEFAULT_FILE_STORAGE = 'pkiman.utils.storage.FileSystemOverwriteStorage'
 
-# Default primary key field type
-# https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
-
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
 FIRST_DAY_OF_WEEK = 1
-
-# --- PKIMAN ---
-# Период хранения записей журнала в БД (дни)
-# PKIMAN_JOURNAL_STORE_PERIOD = 365
-# Крайнее дата/время срока действия PKI
-# PKIMAN_MAX_OLD_PKI_TIME = 12  # hours
-# Количество PKI на странице (paging)
-# PKIMAN_PAGINATE_BY = 20
-# PKIMAN_STORE_NGINX_USE_HTTPS = False
-
-# Периодический запуск функции обновления CRL
-# MIN HOURS DAY MONTH WEEKDAY
-CRONJOBS = [
-    # ('*/15 12-18 * * *', 'django_pkiman.utils.download.update_handle'),
-    ('1 0-23 * * *', 'pkiman.utils.download.update_handle'),
-    # ('0 0 1 * *', 'django_pkiman.utils.logger.journal_clean')
-    ]
