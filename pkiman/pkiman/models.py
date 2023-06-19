@@ -376,6 +376,16 @@ class CrlManager(models.Manager):
             object.file = pki.up_file
             object.save()
 
+        # todo! need test!
+        # Проверка подчиненных сертификатов на отзыв
+        children = issuer.get_children()
+        if children.exists():
+            for crt in children:
+                if crt.serial in pki.revoked_list:
+                    revoked_date, *_ = pki.revoked_list[crt.rerial]
+                    crt.revoked_date = revoked_date
+                    crt.save()
+
         return object, created
 
     def get_root_ca_qs(self):
