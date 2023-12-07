@@ -18,8 +18,9 @@ from pkiman.errors import PKICrtDoesNotFoundError, PKICrtMultipleFoundError, PKI
 from pkiman.utils import clean_file_name
 from pkiman.utils.pki_parser import PKIObject
 
-DEFAULT_JOURNAL_LAST_RECORDS = 50
-DEFAULT_PKIMAN_MAX_OLD_PKI_TIME = getattr(settings, 'PKIMAN_MAX_OLD_PKI_TIME', 12)
+JOURNAL_LAST_RECORDS = 50
+MAX_OLD_PKI_TIME = getattr(settings, 'PKIMAN_MAX_OLD_PKI_TIME')
+DAYS_BEFORE_EXPIRED_NOTIFY = getattr(settings, 'PKIMAN_DAYS_BEFORE_EXPIRED_NOTIFY')
 
 
 # todo - путь cdp вынести в настройки для возможности смены
@@ -38,10 +39,10 @@ class PKITag(TagBase):
 
 class TaggedPKI(GenericTaggedItemBase):
     tag = models.ForeignKey(
-        PKITag,
-        on_delete=models.CASCADE,
-        related_name="%(app_label)s_%(class)s_items",
-        )
+            PKITag,
+            on_delete=models.CASCADE,
+            related_name="%(app_label)s_%(class)s_items",
+    )
 
 
 # Managers
@@ -56,9 +57,9 @@ class CrtManager(MP_NodeManager):
         created = False
         try:
             object = self.get(
-                subject_dn=pki.subject,
-                serial=pki.subject_serial_number
-                )
+                    subject_dn=pki.subject,
+                    serial=pki.subject_serial_number
+            )
 
             # обновляем, в случае отсутствия файла на диске
             if not object.file_exists():
@@ -83,7 +84,7 @@ class CrtManager(MP_NodeManager):
                 'cdp_info': pki.cdp_info,
                 'auth_info': pki.auth_info,
                 'file': pki.up_file
-                }
+            }
 
             # корневой сертификат сам себе родитель
             if pki.is_root:
@@ -93,18 +94,18 @@ class CrtManager(MP_NodeManager):
                     # если есть в БД сертификат subject == issuer добавляемого сертификата - присвоить его как родителя
                     if pki.issuer_serial_number:
                         issuer: Crt = self.get(
-                            subject_dn=pki.issuer,
-                            serial=pki.issuer_serial_number
-                            )
+                                subject_dn=pki.issuer,
+                                serial=pki.issuer_serial_number
+                        )
                     elif pki.issuer_identifier:
                         issuer: Crt = self.get(
-                            subject_dn=pki.issuer,
-                            issuer_identifier=pki.issuer_identifier
-                            )
+                                subject_dn=pki.issuer,
+                                issuer_identifier=pki.issuer_identifier
+                        )
                     else:
                         issuer: Crt = self.get(
-                            subject_dn=pki.issuer,
-                            )
+                                subject_dn=pki.issuer,
+                        )
                     object: Crt = issuer.add_child(**pki_data)
                     object.issuer = issuer
                     object.save()
@@ -115,15 +116,15 @@ class CrtManager(MP_NodeManager):
             # Найти "битые" сертификаты без родителя и установить издателя у сертификатов с таким же issuer_identifier
             if pki.CA:
                 orphans = self.filter(
-                    issuer_dn=pki.subject,
-                    issuer_identifier=pki.subject_identifier,
-                    issuer=None,
-                    is_root_ca=False)
-                if not orphans.exists():  # в случае отсутствия у "битых" сертификатов ID издателя
-                    orphans = self.filter(
                         issuer_dn=pki.subject,
+                        issuer_identifier=pki.subject_identifier,
                         issuer=None,
                         is_root_ca=False)
+                if not orphans.exists():  # в случае отсутствия у "битых" сертификатов ID издателя
+                    orphans = self.filter(
+                            issuer_dn=pki.subject,
+                            issuer=None,
+                            is_root_ca=False)
 
                 if orphans.exists():
                     for orphan in orphans.all():
@@ -146,11 +147,12 @@ class CrtManager(MP_NodeManager):
         return self.get_queryset()
 
     def get_critical_count(self):
-        max_datetime = timezone.now() + datetime.timedelta(hours=DEFAULT_PKIMAN_MAX_OLD_PKI_TIME)
+        max_datetime = timezone.now() + datetime.timedelta(hours=MAX_OLD_PKI_TIME)
         return self.filter(Q(valid_before__lte=max_datetime) | Q(revoked_date__isnull=False)).count()
 
 
 class PKIAddonsMixin:
+
     def get_absolute_url(self):
         if self.file_exists():
             return self.file.url
@@ -163,6 +165,17 @@ class PKIAddonsMixin:
         if self.tags.exists():
             return ', '.join(self.tags.all().values_list('slug', flat=True))
         return ''
+
+    def expired_notify(self) -> bool:
+        """Приближение окончания срока действия (выставляется задачей проверки сроков действия,
+        согласно установленного в параметрах заблаговременного срока уведомления)"""
+
+        days_remains = (self.valid_before - timezone.now()).days
+        return days_remains in (1, DAYS_BEFORE_EXPIRED_NOTIFY)
+
+    def come_to_end(self):
+        remains = self.valid_before - timezone.now()
+        return remains < datetime.timedelta(hours=MAX_OLD_PKI_TIME)
 
 
 # Models
@@ -208,7 +221,7 @@ class Crt(PKIAddonsMixin, MP_Node):
             Index(name='crt_get_by_type', fields=('is_root_ca',
                                                   'is_ca',
                                                   )),
-            )
+        )
 
     def __str__(self):
         if self.comment:
@@ -308,11 +321,6 @@ class Crt(PKIAddonsMixin, MP_Node):
                 cdp_list = [cdp_list]
             return cdp_list
 
-    def come_to_end(self):
-        max_hours_to_end = DEFAULT_PKIMAN_MAX_OLD_PKI_TIME
-        remains = self.valid_before - timezone.now()
-        return remains < datetime.timedelta(hours=max_hours_to_end)
-
     # todo - add func для проверки наличия файла на диске
 
 
@@ -352,16 +360,16 @@ class CrlManager(models.Manager):
                     raise PKICrtMultipleFoundError(value=pki.issuer_identifier)
 
         object, created = self.get_or_create(
-            issuer=issuer,
-            defaults={
-                'crl_number': pki.crl_number,
-                'fingerprint': pki.fingerprint,
-                'last_update': pki.last_update,
-                'next_update': pki.next_update,
-                'revoked_count': len(pki.revoked_list),
-                'file': pki.up_file,
+                issuer=issuer,
+                defaults={
+                    'crl_number': pki.crl_number,
+                    'fingerprint': pki.fingerprint,
+                    'last_update': pki.last_update,
+                    'next_update': pki.next_update,
+                    'revoked_count': len(pki.revoked_list),
+                    'file': pki.up_file,
                 }
-            )
+        )
 
         if not created:
             if pki.fingerprint == object.fingerprint:
@@ -400,7 +408,7 @@ class CrlManager(models.Manager):
         return self.get_queryset().order_by('issuer__path')
 
     def get_critical_count(self):
-        max_datetime = timezone.now() + datetime.timedelta(hours=DEFAULT_PKIMAN_MAX_OLD_PKI_TIME)
+        max_datetime = timezone.now() + datetime.timedelta(hours=MAX_OLD_PKI_TIME)
         return self.filter(next_update__lte=max_datetime).count()
 
 
@@ -422,20 +430,19 @@ class Crl(PKIAddonsMixin, models.Model):
                                            'обновлять со страницы сайта',
                                  default=False)
     schedule = models.ForeignKey(
-        'CrlUpdateSchedule',
-        verbose_name='расписание',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='crl_list')
+            'CrlUpdateSchedule',
+            verbose_name='расписание',
+            on_delete=models.SET_NULL,
+            null=True,
+            blank=True,
+            related_name='crl_list')
     proxy = models.ForeignKey(
-        'Proxy',
-        verbose_name='прокси сервер',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        )
-    no_proxy = models.BooleanField('не использовать прокси', default=False)
+            'Proxy',
+            verbose_name='прокси сервер',
+            on_delete=models.SET_NULL,
+            null=True,
+            blank=True,
+    )
     created_at = models.DateTimeField(auto_now_add=True, editable=False)
     updated_at = models.DateTimeField(auto_now=True, editable=False)
     comment = models.TextField('комментарий', blank=True)
@@ -456,6 +463,10 @@ class Crl(PKIAddonsMixin, models.Model):
     def __str__(self):
         return self.issuer.upload_file_name()
 
+    @property
+    def valid_before(self):
+        return self.next_update
+
     def is_valid(self):
         return timezone.now() < self.next_update
 
@@ -473,10 +484,6 @@ class Crl(PKIAddonsMixin, models.Model):
         ftype = 'crl'
         return f'{ftype}/{name}.{ftype}'
 
-    def come_to_end(self):
-        max_hours_to_end = DEFAULT_PKIMAN_MAX_OLD_PKI_TIME
-        remains = self.next_update - timezone.now()
-        return remains < datetime.timedelta(hours=max_hours_to_end)
 
     @property
     def user_pki_store(self):
@@ -554,7 +561,7 @@ class CrlUpdateSchedule(models.Model):
         ordering = ('name',)
         indexes = (
             Index(name='crl_schedule_get_tasks_idx', fields=('is_active', 'std', 'etd')),
-            )
+        )
 
     def __str__(self):
         return self.name
@@ -633,7 +640,7 @@ class Proxy(models.Model):
         return {
             'http': self.get_url(),
             'https': self.get_url()
-            }
+        }
 
 
 class JournalManager(models.Manager):
@@ -641,7 +648,7 @@ class JournalManager(models.Manager):
     def create_record(self, level: 'JournalTypeChoices', message: str):
         self.create(level=level, message=message)
 
-    def last(self, count=DEFAULT_JOURNAL_LAST_RECORDS):
+    def last(self, count=JOURNAL_LAST_RECORDS):
         return self.get_queryset()[:count]
 
     def last_5(self):
