@@ -125,3 +125,4 @@ pkiman/store
 !/additionals/nginx/include/
 /.idea/encodings.xml
 /.idea/webResources.xml
+/pkiman/.idea/
