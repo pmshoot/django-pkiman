@@ -211,6 +211,8 @@ class Crt(PKIAddonsMixin, MP_Node):
             )
 
     def __str__(self):
+        if self.comment:
+            return f'{self.name()} [{self.comment}]'
         return self.name()
 
     def name(self):
