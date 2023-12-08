@@ -12,8 +12,7 @@ from django.core.validators import URLValidator
 from django.db import transaction
 from django.utils import timezone
 
-from pkiman.errors import PKIDuplicateError, PKIUrlConnectionError, PKIUrlContentTypeInvalid, PKIUrlError, \
-    PKIUrlInvalid
+from pkiman.errors import (PKIDuplicateError, PKIUrlConnectionError, PKIUrlContentTypeInvalid, PKIUrlError, PKIUrlInvalid)
 from pkiman.models import Crl, CrlUpdateSchedule
 from pkiman.utils import mime_content_type_map
 from pkiman.utils.logger import logger
@@ -101,6 +100,7 @@ def get_from_url(url: str, method: str = 'get', session=None, proxy: 'str | dict
                 charset='utf-8',
         )
         upfile.write(resp.content)
+
     upfile.seek(0)
     logger.info(f'Загружен файл {url}, size={upfile.size}, elapsed={resp.elapsed}')
     return upfile, resp
@@ -131,7 +131,9 @@ def update_crl(crl: 'Crl'):
                 # check updates on site by etag or size header
                 _, resp = get_from_url(url, 'head', session, proxy)
                 r_etag = resp.headers.get('etag')
-                r_date = timezone.datetime.strptime(resp.headers.get('date'), '%a, %d %b %Y %H:%M:%S %Z')
+                r_date = resp.headers.get('date')
+                if r_date:
+                    r_date = timezone.datetime.strptime(r_date, '%a, %d %b %Y %H:%M:%S %Z')
                 if r_etag and r_etag != crl.f_etag:
                     has_updates = True
                 elif r_date and r_date != crl.f_date:
@@ -144,12 +146,11 @@ def update_crl(crl: 'Crl'):
                         pki = PKIObject()
                         pki.read_x509(up_file)
 
-                        with transaction.atomic():
-                            crl, _ = crl.__class__.objects.get_from_pki(pki)
-                            crl.f_etag = r_etag
-                            crl.f_date = r_date
-                            crl.f_sync = timezone.now()
-                            crl.save()
+                        # with transaction.atomic():
+                        crl, _ = crl.__class__.objects.get_from_pki(pki)
+                        crl.f_etag = r_etag
+                        crl.f_date = timezone.make_aware(r_date)
+                        crl.save()
 
                         if last_error:
                             last_error = None
