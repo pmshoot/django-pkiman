@@ -329,11 +329,14 @@ class ManagementUrlIndexView(MgmtAccessMixin, MgmtModeMixin, TemplateView):
 
     def _generate_index_block(self, info, queryset):
         index_block = [f'# ----- {info} {"-" * (140 - len(info))}\n']
+        name_line = '# ({type}) {cn}\n'
         get_index_line = self._get_index_line_wrapper()
         for object in queryset:
+            index_block.append(name_line.format(type=object.user_pki_type, cn=object.title()))
             index_block.extend(get_index_line(object))
             if hasattr(object, 'crl'):
                 object = object.crl
+                index_block.append(name_line.format(type=object.user_pki_type, cn=object.title()))
                 index_block.extend(get_index_line(object))
         return index_block
 
