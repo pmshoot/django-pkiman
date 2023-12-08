@@ -224,9 +224,14 @@ class Crt(PKIAddonsMixin, MP_Node):
         )
 
     def __str__(self):
-        if self.comment:
-            return f'{self.name()} [{self.comment}]'
         return self.name()
+
+    @admin.display(description='Наименование')
+    def title(self):
+        title = f'{self.name()} [{self.comment}]' if self.comment else self.name()
+        if self.is_root_ca:
+            return title + ' (Root)'
+        return title
 
     def name(self):
         return self.cn or self.subject_as_text()
@@ -450,7 +455,6 @@ class Crl(PKIAddonsMixin, models.Model):
     f_date = models.DateTimeField('дата файла', null=True)
     f_size = models.PositiveSmallIntegerField('размер файла', null=True)
     f_etag = models.CharField('хэш файла', max_length=128, null=True)
-    f_sync = models.DateTimeField('дата последней синхронизации', null=True)
 
     objects = CrlManager()
     tags = TaggableManager(blank=True, through=TaggedPKI)
@@ -461,7 +465,11 @@ class Crl(PKIAddonsMixin, models.Model):
         ordering = ('issuer',)
 
     def __str__(self):
-        return self.issuer.upload_file_name()
+        return f'CRL <{self.issuer.upload_file_name()}>'
+
+    @admin.display(description='Наименование')
+    def title(self):
+        return self.issuer.title()
 
     @property
     def valid_before(self):
@@ -475,7 +483,7 @@ class Crl(PKIAddonsMixin, models.Model):
             return [url.strip() for url in self.urls.split(',')]
 
     def get_proxy(self):
-        if not self.no_proxy and self.proxy:
+        if self.proxy:
             return self.proxy.get_url()
 
     def upload_file_path(self):
@@ -507,20 +515,20 @@ def delete_crl_object(sender, instance: Crl, **kwargs):
             pass
 
 
-@receiver(pre_save, sender=Crl, weak=False)
-def set_proxy_crl_object(sender, instance: Crl, **kwargs):
-    """При установке опции 'no_proxy' удаляет существующую ссылку на инстанс прокси-сервера.
-    При снятии установленной опции 'no_proxy' устанавливает прокси-сервер по-умолчанию, если у
-    одного из прокси установлена опция 'is_default'
-    """
-    if instance.no_proxy and instance.proxy:
-        instance.proxy = None
-    elif not instance.no_proxy and not instance.proxy:
-        try:
-            proxy = Proxy.objects.get_default_proxy()
-            instance.proxy = proxy
-        except (Proxy.DoesNotExist, MultipleObjectsReturned):
-            pass
+# @receiver(pre_save, sender=Crl, weak=False)
+# def set_proxy_crl_object(sender, instance: Crl, **kwargs):
+#     """При установке опции 'no_proxy' удаляет существующую ссылку на инстанс прокси-сервера.
+#     При снятии установленной опции 'no_proxy' устанавливает прокси-сервер по-умолчанию, если у
+#     одного из прокси установлена опция 'is_default'
+#     """
+#     if instance.no_proxy and instance.proxy:
+#         instance.proxy = None
+#     elif not instance.no_proxy and not instance.proxy:
+#         try:
+#             proxy = Proxy.objects.get_default_proxy()
+#             instance.proxy = proxy
+#         except (Proxy.DoesNotExist, MultipleObjectsReturned):
+#             pass
 
 
 ###
@@ -679,3 +687,9 @@ class Journal(models.Model):
         verbose_name = 'Запись журнала'
         verbose_name_plural = 'Журнал'
         ordering = ('-created_at',)
+
+    def __str__(self):
+        return self.message
+
+    def is_error(self):
+        return self.level == JournalTypeChoices.ERROR
