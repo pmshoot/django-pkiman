@@ -34,7 +34,8 @@ def cert_padding_left(item):
 @register.filter
 def mark_cert(item):
     if item.is_root_ca:
-        return 'font-weight:bold;color: brown;'
+        # return 'font-weight:bold;color: brown;'
+        return 'font-weight:bold;'
     elif item.is_final():
         return 'color: green;'
     else:
@@ -69,8 +70,8 @@ def pki_critical_period_tag(value='all'):
         else:
             count = None
         if count:
-            return mark_safe(f'<span style="background-color: red" class="uk-badge uk-light uk-text-bold"'
-                             f'>{count}</span>')
+            # return mark_safe(f'<span style="background-color: orange" class="uk-badge uk-light uk-text-bold">{count}</span>')
+            return mark_safe(f'<span style="background-color: orange" class="uk-badge">{count}</span>')
     return ''
 
 
@@ -85,7 +86,7 @@ def boolicon(value):
 @register.filter(name='level_tag')
 def journal_level_tag(value):
     return {
-        'I': 'mediumblue',
+        'I': 'black',
         'W': 'orange',
         'E': 'red',
         }.get(value, '')
