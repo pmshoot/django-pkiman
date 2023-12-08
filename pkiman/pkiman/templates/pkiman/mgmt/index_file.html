@@ -2,7 +2,7 @@
 {% block mgmt-subnav-index %}
   <li class="uk-active"><a href="">Индекс</a></li>
 {% endblock %}
-{% block left_block %}
+{% block main_block %}
   <form action="" method="post">
     {% csrf_token %}
     <button type="submit" name="generate_file">Генерировать индекс-файл</button>

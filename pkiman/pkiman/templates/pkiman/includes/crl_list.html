@@ -3,11 +3,11 @@
   <table class="uk-table uk-table-hover uk-table-justify uk-text-small uk-table-divider">
     <thead>
     <tr class="uk-background-muted">
-      <th class="uk-table-shrink">Сертификат</th>
+      {#      <th class="uk-table-shrink">Сертификат</th>#}
       <th class="uk-table-expand">Список отзыва</th>
       <th class="uk-table-shrink">Период</th>
       <th class="uk-table-shrink">Файл</th>
-      <th>Планировщик</th>
+      <th class="uk-table-shrink">Планировщик</th>
     </tr>
     </thead>
     <tbody>
@@ -16,18 +16,25 @@
         <tr{% if not item_is_valid or item.come_to_end %} style="background-color: rgba(255,228,181,0.52)"{% endif %}>
           {# Certificate #}
           <td class="uk-padding-remove-vertical uk-table-expand" title="{{ item.issuer.subject_as_text }}">
-            <div><a href="#">{{ item.issuer }}</a></div>
-            <div><small style="font-family: monospace">ID:{{ item.issuer.subject_identifier }}</small></div>
-            <div><small style="font-family: monospace">SN:{{ item.issuer.serial }}</small></div>
-          </td>
-          {# Crl data #}
-          <td class="uk-padding-remove-vertical uk-table-shrink">
-            <div style="font-family: monospace"><a href="#">FP:{{ item.fingerprint }}</a></div>
-            <div><small style="font-family: monospace">#:{{ item.crl_number|default_if_none:'-' }}</small></div>
-            <div>
-              {% for tag in item.tags.all %}
-                <code><small title="Тег"><a class="uk-link-reset" href="{% url 'pkiman:index' %}?pki={{ pki_type }}&s=tag:{{ tag.slug }}">{{ tag }}</a></small></code>
-              {% endfor %}
+            <div style="padding-block: 0.4em">
+              <div style="font-weight: bold; font-size: 1.1em;"><a href="#">{{ item.title }}</a></div>
+              <div>
+                <span class="uk-text-bold">CRT</span>
+{#                <span>ID:<code style="font-family: monospace">{{ item.issuer.subject_identifier }}</code></span>#}
+                <code>ID:</code><span style="font-family: monospace">{{ item.issuer.subject_identifier }}</span>
+                <code>SN:</code><span style="font-family: monospace">{{ item.issuer.serial }}</span>
+              </div>
+              <div>
+                <span class="uk-text-bold">CRL</span>
+                <code>FP:</code><span style="font-family: monospace">{{ item.fingerprint }}</span>
+                <code>№:</code><span style="font-family: monospace">{{ item.crl_number|default_if_none:'-' }}</span>
+              </div>
+              <div>
+                {% for tag in item.tags.all %}
+                  <code><small title="Тег"><a class="uk-link-reset"
+                                              href="{% url 'pkiman:index' %}?pki={{ pki_type }}&s=tag:{{ tag.slug }}">{{ tag }}</a></small></code>
+                {% endfor %}
+              </div>
             </div>
           </td>
           {# Crl period #}
@@ -81,11 +88,6 @@
                 <span><small><i uk-icon="icon: clock; ratio: .7"></i> не установлен</small></span>
               {% endif %}
             </div>
-            {# Sync #}
-            {% if item.f_sync %}
-              <div><small title="последняя синхронизация"><i uk-icon="icon: refresh; ratio: .7"></i> {{ item.f_sync }}
-              </small></div>
-            {% endif %}
             {# Run update #}
             {% if mgmt and item.urls %}
               <div title="запустить обновление"><small>

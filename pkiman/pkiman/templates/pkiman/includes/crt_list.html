@@ -17,12 +17,12 @@
             <a href="#" class="uk-icon-link"><span uk-icon="icon: info"></span></a>
           </td>
           {# Certificate data  #}
-          <td class="uk-padding-remove-top">
+          <td class="uk-padding-remove-top padd">
             {% with item|cert_padding_left as padding_left %}
               <div class="uk-grid-small uk-child-width-1-2" uk-grid>
-                <div class="uk-inline" style="padding-left: {{ padding_left }}ex">
+                <div class="uk-inline" style="padding-left: {{ padding_left }}ex; font-size: 1.1em;">
                   <a style="{{ item|mark_cert }}" uk-toggle="target: #id_{{ item.pk }};">
-                    <img src="{{ item|cert_icon_url }}">{{ item }}
+                    <img src="{{ item|cert_icon_url }}">{{ item.title }}
                   </a>
                   {% if not item.is_bound and item.auth_info %}
                     <small><a class="uk-badge" href="{% url 'pkiman:get_parent_crt' item.pk %}?pki={{ pki_type }}">Загрузить
@@ -59,11 +59,13 @@
           </td>
           {# Теги #}
           <td class="uk-padding-remove-top uk-text-small">
-            <div>
-              {% for tag in item.tags.all %}
-                <code><small><a class="uk-link-reset" href="{% url 'pkiman:index' %}?pki={{ pki_type }}&s=tag:{{ tag.slug }}">{{ tag }}</a></small></code>
-              {% endfor %}
-            </div>
+            {#            <div>#}
+            {% for tag in item.tags.all %}
+              <span><a style="font-family: monospace; font-size: 0.9em;"
+                       href="{% url 'pkiman:index' %}?pki={{ pki_type }}&s=tag:{{ tag.slug }}">#{{ tag }}</a>
+              </span>
+            {% endfor %}
+            {#            </div>#}
           </td>
           <td class="uk-padding-remove-top uk-text-small"> {# Cert file #}
             {% if item.file_exists %}
@@ -87,8 +89,8 @@
     {% endfor %}
     </tbody>
   </table>
-  {% include 'pkiman/includes/paginator.html' %}
 {% else %}
   <div>Сертификаты не найдены</div>
 {% endif %}
+{% include 'pkiman/includes/paginator.html' %}
 

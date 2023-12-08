@@ -51,7 +51,8 @@
     <div class="uk-background-muted uk-text-bolder">
       <ul class="uk-subnav uk-subnav-divider uk-margin-remove-vertical uk-margin-left">
         {% block mgmt-subnav-reestr %}
-          <li><a href="{% url 'pkiman:index' %}">{{ 'all'|pki_critical_period_tag }} Реестр</a></li>{% endblock %}
+{#          <li><a href="{% url 'pkiman:index' %}">{{ 'all'|pki_critical_period_tag }} Реестр</a></li>{% endblock %}#}
+          <li><a href="{% url 'pkiman:index' %}">Реестр</a></li>{% endblock %}
         {% block mgmt-subnav-upload %}
           <li><a href="{% url 'pkiman:uploads' %}">Загрузка</a></li>{% endblock %}
         {% block mgmt-subnav-schedule %}
@@ -77,27 +78,9 @@
   {% endblock messages %}
   {# Main #}
   <div class="uk-section uk-section-default uk-padding-remove-vertical">
-    <div class="uk-container-expand">
-      <div class="uk-grid uk-padding-small">
-        {# Left block #}
-        <div class="uk-width-5-6">
-          {% block left_block %}
-            <div class="uk-container-expand"></div>
-          {% endblock %}
-        </div>
-        {# Right block #}
-        <div class="uk-width-1-6">
-          {% block right_block %}
-            <h2>Table of Contents</h2>
-            <div>
-              <ul class="uk-nav">
-                <li><a href="#">Info</a></li>
-                <li><a href="#">Items list</a></li>
-              </ul>
-            </div>
-          {% endblock %}
-        </div>
-      </div>
+    <div class="uk-container-expand uk-padding-small">
+      {% block main_block %}
+      {% endblock %}
     </div>
   </div>
 
