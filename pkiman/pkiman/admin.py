@@ -117,11 +117,12 @@ class CrtAdmin(PKIModelAdminMixin, admin.ModelAdmin):
             }),
         ]
 
-    @admin.display(description='Наименование')
-    def title(self, obj):
-        if obj.is_root_ca:
-            return obj.cn + ' (root)'
-        return obj.cn
+    # @admin.display(description='Наименование')
+    # def title(self, obj):
+    #     title = f'{obj.cn} [{obj.comment}]' if obj.comment else obj.cn
+    #     if obj.is_root_ca:
+    #         return title + ' (root)'
+    #     return title
 
     @admin.display(description='DN')
     def subject_dn_as_text_nl(self, obj):
@@ -164,7 +165,7 @@ class CrlAdmin(PKIModelAdminMixin, admin.ModelAdmin):
     search_fields = ('issuer__subject_identifier', 'issuer__subject_dn__commonName')
     search_help_text = 'введите часть наименования или идентификационного номера сертификата, относящегося к списку'
     date_hierarchy = "next_update"
-    list_display = ('issuer_name',
+    list_display = ('title',
                     'issuer_subject_identifier',
                     'tag_list',
                     'next_update',
@@ -181,7 +182,6 @@ class CrlAdmin(PKIModelAdminMixin, admin.ModelAdmin):
                        'f_date',
                        'f_size',
                        'f_etag',
-                       'f_sync',
                        )
     fieldsets = [
         ('Данные списка отзыва', {
@@ -203,7 +203,6 @@ class CrlAdmin(PKIModelAdminMixin, admin.ModelAdmin):
                        'schedule',
                        'proxy',
                        'active',
-                       'no_proxy',
                        'comment',
                        )
             }),
@@ -213,7 +212,6 @@ class CrlAdmin(PKIModelAdminMixin, admin.ModelAdmin):
             'fields': ('f_date',
                        'f_etag',
                        'f_size',
-                       'f_sync',
                        )
             }),
         ('Тегирование', {
@@ -221,11 +219,6 @@ class CrlAdmin(PKIModelAdminMixin, admin.ModelAdmin):
             }),
         ]
 
-    @admin.display(description='Наименование')
-    def issuer_name(self, obj):
-        return obj.issuer.name()
-
-    @admin.display
     @admin.display(description='Идентификатор')
     def issuer_subject_identifier(self, obj):
         return obj.issuer.subject_identifier
