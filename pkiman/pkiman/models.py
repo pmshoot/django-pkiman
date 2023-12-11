@@ -163,7 +163,7 @@ class PKIAddonsMixin:
 
     def tag_list(self):
         if self.tags.exists():
-            return ', '.join(self.tags.all().values_list('slug', flat=True))
+            return ','.join(self.tags.all().values_list('slug', flat=True))
         return ''
 
     def expired_notify(self) -> bool:
